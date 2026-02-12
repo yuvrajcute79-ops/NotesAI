@@ -1,6 +1,7 @@
 import streamlit as st
 import google.generativeai as genai
 from PIL import Image
+import time
 
 # 1. API Configuration
 if "GEMINI_API_KEY" in st.secrets:
@@ -8,72 +9,100 @@ if "GEMINI_API_KEY" in st.secrets:
 else:
     st.error("API Key not found in Streamlit Secrets!")
 
-# --- MODEL SELECTION (February 2026 Update) ---
-# We use gemini-2.5-flash as the primary stable model.
-try:
-    model = genai.GenerativeModel('gemini-2.5-flash')
-    # Quick test to see if the model name exists
-    model.generate_content("test", generation_config={"max_output_tokens": 1})
-except Exception:
-    # Fallback to the latest Preview if 2.5 is unavailable in your region
-    model = genai.GenerativeModel('gemini-3-flash-preview')
+model = genai.GenerativeModel('gemini-2.0-flash')
 
-# 2. UI Styling (NMWS Colors: Navy & Gold)
-st.set_page_config(page_title="AI Study Lab", layout="wide")
+# 2. THE CHATGPT DARK UI & ANIMATION
+st.set_page_config(page_title="NotesAI | Studio", page_icon="⚡", layout="wide")
 
 st.markdown("""
     <style>
-    .main { background-color: #f0f2f6; }
-    div.stButton > button:first-child {
-        background-color: #002366;
-        color: white;
-        border-radius: 10px;
-        height: 3em;
-        width: 100%;
+    /* ChatGPT Dark Background */
+    .stApp {
+        background-color: #212121;
+        color: #ececec;
+    }
+    
+    /* Center the main content area */
+    .block-container {
+        max-width: 800px;
+        padding-top: 2rem;
+    }
+
+    /* Sidebar Styling */
+    section[data-testid="stSidebar"] {
+        background-color: #171717 !important;
+    }
+
+    /* Custom 'Study-Thinking' Animation */
+    @keyframes rotateSymbols {
+        0% { transform: rotate(0deg); opacity: 0; }
+        50% { opacity: 1; }
+        100% { transform: rotate(360deg); opacity: 0; }
+    }
+    .thinking-container {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 10px;
+        color: #ab9ff2;
+        font-family: monospace;
+    }
+    .math-icon {
+        font-size: 24px;
+        animation: rotateSymbols 2s linear infinite;
+    }
+
+    /* Input Box Styling */
+    .stChatInputContainer {
+        padding-bottom: 20px;
     }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🎓 Universal AI Study Companion")
-st.sidebar.header("Navigation")
-mode = st.sidebar.selectbox("Choose a Study Mode", ["Tutor Chat", "Note Scanner", "Exam Prep (Quiz)"])
+# Define the custom thinking animation as a function
+def study_spinner():
+    return st.markdown("""
+        <div class="thinking-container">
+            <div class="math-icon">π</div>
+            <div class="math-icon" style="animation-delay: 0.5s">H₂O</div>
+            <div class="math-icon" style="animation-delay: 1s">Σ</div>
+            <span>NotesAI is analyzing equations...</span>
+        </div>
+    """, unsafe_allow_html=True)
 
-# 3. Mode Logic
-if mode == "Tutor Chat":
-    st.info("Ask me anything about History, Chemistry, Math, or Physics!")
-    chat_input = st.chat_input("Type your question here...")
+# --- APP LAYOUT ---
+st.title("⚡ NotesAI")
+st.markdown("---")
+
+# Sidebar
+st.sidebar.title("NotesAI Tools")
+mode = st.sidebar.radio("Switch View", ["💬 Tutor Chat", "📷 Scanner", "📝 Quiz Builder"])
+
+GEMINI_LOGO = "https://www.gstatic.com/lamda/images/gemini_sparkle_v002_d47353047313511b7d3f2.svg"
+
+# 3. MODE LOGIC
+if mode == "💬 Tutor Chat":
+    chat_input = st.chat_input("Ask NotesAI anything...")
+    
     if chat_input:
-        with st.spinner("Thinking..."):
-            try:
-                response = model.generate_content(f"You are a helpful academic tutor. Explain this clearly for an 8th grader: {chat_input}")
-                st.chat_message("assistant").write(response.text)
-            except Exception as e:
-                st.error(f"AI Error: {e}")
-
-elif mode == "Note Scanner":
-    st.info("Upload a photo of your handwritten notes.")
-    uploaded_file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
-    if uploaded_file:
-        img = Image.open(uploaded_file)
-        st.image(img, caption='Notes Detected', width=300)
-        if st.button("Analyze & Summarize"):
-            with st.spinner("AI is reading your handwriting..."):
-                try:
-                    response = model.generate_content(["Read this image. Transcribe the text and provide a structured summary with key points.", img])
-                    st.markdown("### 📝 AI Summary")
-                    st.write(response.text)
-                except Exception as e:
-                    st.error(f"AI Error: {e}")
-
-elif mode == "Exam Prep (Quiz)":
-    st.info("Enter a topic to generate a practice quiz.")
-    topic = st.text_input("Enter Topic (e.g., '1857 Revolt')")
-    if st.button("Generate 5-Question Quiz"):
-        with st.spinner("Creating your quiz..."):
-            try:
-                response = model.generate_content(f"Generate a 5-question multiple choice quiz on {topic} for an 8th-grade student. Include answers at the end.")
-                st.markdown("### ❓ Practice Quiz")
+        st.chat_message("user").write(chat_input)
+        
+        # Trigger the custom "Thinking" animation
+        thinking_placeholder = st.empty()
+        with thinking_placeholder:
+            study_spinner()
+            
+        try:
+            # Generate response
+            response = model.generate_content(f"You are NotesAI, a professional 8th grade tutor. Explain: {chat_input}")
+            
+            # Remove animation and show answer
+            thinking_placeholder.empty()
+            with st.chat_message("assistant", avatar=GEMINI_LOGO):
+                st.markdown("**NotesAI**")
                 st.write(response.text)
-            except Exception as e:
-                st.error(f"AI Error: {e}")
+        except Exception as e:
+            thinking_placeholder.empty()
+            st.error(f"Error: {e}")
 
+# (Note: Keep Scanner and Quiz logic from previous code here)
