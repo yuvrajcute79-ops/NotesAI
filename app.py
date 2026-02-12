@@ -1,8 +1,8 @@
 import streamlit as st
 import google.generativeai as genai
 from PIL import Image
-import random # Added for the new Study Tip feature
-import time   # Added for the Timer feature
+import random 
+import time   
 
 # 1. API Configuration
 if "GEMINI_API_KEY" in st.secrets:
@@ -47,6 +47,9 @@ st.markdown("""
         margin-bottom: 20px;
         border-left: 5px solid #002366;
     }
+    .stProgress > div > div > div > div {
+        background-color: #002366;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -59,16 +62,26 @@ with st.sidebar:
     st.divider()
     st.markdown("### 📊 Learning Dashboard")
     st.metric(label="System Status", value="Active", delta="100% Uptime")
-    st.metric(label="AI Latency", value="Low", delta="-0.2s")
     
     st.markdown("---")
-    # NEW FEATURE: Adjustable Daily Goal
-    st.markdown("### 📈 Set Daily Goal")
-    goal_value = st.slider("Goal Progress (%)", 0, 100, 65) 
-    st.progress(goal_value)
-    st.caption(f"{goal_value}% of today's study goal reached!")
+    # ENHANCED FEATURE: Custom Daily Goal Management
+    st.markdown("### 📈 Goal Customization")
+    target_hours = st.number_input("Target Study Minutes", min_value=15, max_value=480, value=60, step=15)
+    completed_hours = st.slider("Minutes Completed", 0, target_hours, int(target_hours*0.65))
+    
+    progress_percentage = int((completed_hours / target_hours) * 100)
+    st.progress(progress_percentage / 100)
+    
+    if progress_percentage < 40:
+        st.warning(f"Level: Beginner ({progress_percentage}%)")
+    elif progress_percentage < 80:
+        st.info(f"Level: Intermediate ({progress_percentage}%)")
+    else:
+        st.success(f"Level: Master Scholar ({progress_percentage}%)")
+    
+    st.caption(f"Goal: {completed_hours}/{target_hours} mins")
 
-    # NEW FEATURE: Focus Timer
+    # FOCUS TIMER
     st.markdown("---")
     st.markdown("### ⏱️ Focus Timer")
     timer_time = st.selectbox("Set Session (mins)", [15, 25, 45, 60], index=1)
@@ -85,7 +98,6 @@ with col2:
     st.title("NotesAI")
     st.subheader("Your Intelligent STEM Study Partner")
 
-# Updated Description based on your request
 st.markdown("""
 <div class="feature-card">
     <strong>Welcome to the future of studying!</strong><br>
@@ -94,49 +106,38 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# NEW FEATURE: Study Tip of the Day
+# STUDY TIP
 tips = [
     "Use active recall: Test yourself instead of just re-reading.",
     "Space out your study sessions for better long-term memory.",
     "Try explaining a topic to an imaginary student to find your knowledge gaps.",
     "Take 5-minute breaks every 25 minutes (Pomodoro technique)."
 ]
-st.light_bulb = random.choice(tips)
-st.info(f"💡 **Study Tip of the Day:** {st.light_bulb}")
+st.info(f"💡 **Study Tip of the Day:** {random.choice(tips)}")
 
 st.divider()
 
-# 3. Mode Logic
+# --- MODE LOGIC ---
 if mode == "Tutor Chat":
     st.markdown("### 💬 Interactive Tutor")
-    col_a, col_b, col_c = st.columns(3)
-    col_a.markdown("📖 **IGCSE Ready**")
-    col_b.markdown("🧪 **STEM Focused**")
-    col_c.markdown("⚡ **Instant Help**")
+    # NEW FEATURE: Subject Specialization
+    subject = st.radio("Focus Area:", ["General", "Science", "History", "Math"], horizontal=True)
     
-    st.write("""
-    **How to use:** Type any concept you're struggling with in the chat box below. 
-    NotesAI provides age-appropriate explanations for your syllabus.
-    """)
-    st.info("💡 **Try asking:** 'Explain the importance of the 1857 Revolt' or 'What is a Catalyst in Chemistry?'")
+    st.write(f"**How to use:** Ask any {subject} question below for an age-appropriate explanation.")
     
     chat_input = st.chat_input("Type your question here...")
     if chat_input:
         with st.spinner("NotesAI is processing your query..."):
             try:
-                response = model.generate_content(f"You are NotesAI, a helpful academic tutor. Explain this clearly for an 8th grader: {chat_input}")
+                prompt = f"You are NotesAI, a specialist {subject} tutor for an 8th grader. Explain this clearly: {chat_input}"
+                response = model.generate_content(prompt)
                 st.chat_message("assistant", avatar="🎓").write(response.text)
             except Exception as e:
                 st.error(f"AI Error: {e}")
 
 elif mode == "Note Scanner":
     st.markdown("### 📸 Vision Scanner")
-    st.write("""
-    **How to use:** Upload a clear photo of your notebook. Our computer vision 
-    will extract the text and create a summarized 'Cheat Sheet'.
-    """)
-    
-    st.warning("📸 **Photography Tip:** Ensure the paper is flat and the handwriting is legible for the best AI accuracy.")
+    st.write("Upload a photo of your notebook to create a summarized 'Cheat Sheet'.")
     
     uploaded_file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
     
@@ -148,33 +149,33 @@ elif mode == "Note Scanner":
         
         with text_col:
             if st.button("✨ Analyze & Summarize"):
-                with st.spinner("Deciphering handwriting and extracting key concepts..."):
+                with st.spinner("Extracting key concepts..."):
                     try:
-                        response = model.generate_content(["Read this image. Transcribe the text and provide a structured summary with key points.", img])
+                        response = model.generate_content(["Provide a structured summary of these notes with key terms and definitions.", img])
                         st.success("Data Extraction Complete!")
                         st.markdown("#### 📝 Notes Summary")
                         st.write(response.text)
+                        
+                        # NEW FEATURE: Download Summary
+                        st.download_button(label="📥 Download Study Summary", data=response.text, file_name="study_notes.txt", mime="text/plain")
                     except Exception as e:
                         st.error(f"AI Error: {e}")
 
 elif mode == "Exam Prep (Quiz)":
     st.markdown("### 📝 Quiz Generator")
-    st.write("""
-    **How to use:** Enter a specific topic to generate a 5-question mock test to challenge your understanding.
-    """)
+    # NEW FEATURE: Difficulty Customization
+    diff = st.select_slider("Select Difficulty:", options=["Easy", "Medium", "Hard"], value="Medium")
     
-    st.markdown("✅ *Multiple Choice* | ✅ *Instant Results* | ✅ *Detailed Answers*")
+    topic = st.text_input("What topic would you like to be tested on?", placeholder="Enter topic here...")
     
-    topic = st.text_input("What would you like to be tested on?", placeholder="Enter topic here...")
-    
-    if st.button("🔥 Generate 5-Question Quiz"):
-        with st.spinner("Generating academic test questions..."):
+    if st.button("🔥 Generate Practice Quiz"):
+        with st.spinner(f"Generating {diff} difficulty test..."):
             try:
-                response = model.generate_content(f"Generate a 5-question multiple choice quiz on {topic} for an 8th-grade student. Include answers at the end.")
+                response = model.generate_content(f"Generate a 5-question {diff} level multiple choice quiz on {topic} for an 8th-grade student. Include answers at the end.")
                 st.balloons() 
                 st.markdown("---")
-                st.markdown("### ❓ Practice Quiz")
+                st.markdown(f"### ❓ {diff} Practice Quiz: {topic}")
                 st.write(response.text)
-                st.caption("✅ Answers are provided at the bottom of the generated text.")
+                st.download_button(label="📥 Download Quiz for Later", data=response.text, file_name="quiz.txt", mime="text/plain")
             except Exception as e:
                 st.error(f"AI Error: {e}")
