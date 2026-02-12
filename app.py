@@ -8,107 +8,71 @@ if "GEMINI_API_KEY" in st.secrets:
 else:
     st.error("API Key not found in Streamlit Secrets!")
 
-# Model Selection - 1.5-flash is best for high-traffic free tier use
-model = genai.GenerativeModel('gemini-1.5-flash')
+# --- MODEL SELECTION (February 2026 Update) ---
+# We use gemini-2.5-flash as the primary stable model.
+try:
+    model = genai.GenerativeModel('gemini-2.5-flash')
+    # Quick test to see if the model name exists
+    model.generate_content("test", generation_config={"max_output_tokens": 1})
+except Exception:
+    # Fallback to the latest Preview if 2.5 is unavailable in your region
+    model = genai.GenerativeModel('gemini-3-flash-preview')
 
-# 2. UI BRANDING & CUSTOM CSS
-st.set_page_config(page_title="NotesAI | NMWS Hub", page_icon="🎓", layout="wide")
+# 2. UI Styling (NMWS Colors: Navy & Gold)
+st.set_page_config(page_title="AI Study Lab", layout="wide")
 
-# --- CUSTOM LOGO SETUP ---
-# Update this link with your actual logo file path later
-NOTES_AI_LOGO = "https://www.gstatic.com/lamda/images/gemini_sparkle_v002_d47353047313511b7d3f2.svg" 
-
-st.markdown(f"""
+st.markdown("""
     <style>
-    /* Main Background */
-    .stApp {{ background-color: #f0f2f6; }}
-    
-    /* Sidebar: Navy Blue */
-    section[data-testid="stSidebar"] {{
-        background-color: #002366 !important;
-        color: white;
-    }}
-    section[data-testid="stSidebar"] .stMarkdown h1, h2, h3, p {{
-        color: white !important;
-    }}
-
-    /* Buttons: Professional Navy */
-    div.stButton > button:first-child {{
+    .main { background-color: #f0f2f6; }
+    div.stButton > button:first-child {
         background-color: #002366;
         color: white;
         border-radius: 10px;
-        font-weight: bold;
-        height: 3.5em;
+        height: 3em;
         width: 100%;
-        border: none;
-        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-    }}
-    
-    /* Input field focus */
-    .stChatInputContainer {{ padding-bottom: 20px; }}
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# --- SIDEBAR & NAVIGATION ---
-st.sidebar.title("⚡ NotesAI")
-st.sidebar.markdown("NMWS STEM Exhibition 2026")
-st.sidebar.markdown("---")
-mode = st.sidebar.radio("CHOOSE TOOL:", ["🧠 24/7 Personal Tutor", "📸 Smart Note Scanner", "📝 Instant Quiz Maker"])
+st.title("🎓 Universal AI Study Companion")
+st.sidebar.header("Navigation")
+mode = st.sidebar.selectbox("Choose a Study Mode", ["Tutor Chat", "Note Scanner", "Exam Prep (Quiz)"])
 
-# --- MAIN CONTENT ---
-st.title(f"🎓 {mode}")
-
-if mode == "🧠 24/7 Personal Tutor":
-    st.info("Ask NotesAI about your IGCSE or IB syllabus topics.")
-    chat_input = st.chat_input("Ask a question...")
-    
+# 3. Mode Logic
+if mode == "Tutor Chat":
+    st.info("Ask me anything about History, Chemistry, Math, or Physics!")
+    chat_input = st.chat_input("Type your question here...")
     if chat_input:
-        st.chat_message("user").write(chat_input)
-        
-        with st.spinner("NotesAI is processing your query..."):
+        with st.spinner("Thinking..."):
             try:
-                with st.chat_message("assistant", avatar=NOTES_AI_LOGO):
-                    st.markdown("**NotesAI**")
-                    response = model.generate_content(f"You are NotesAI, a professional tutor for an 8th grade student. Explain: {chat_input}")
-                    st.write(response.text)
+                response = model.generate_content(f"You are a helpful academic tutor. Explain this clearly for an 8th grader: {chat_input}")
+                st.chat_message("assistant").write(response.text)
             except Exception as e:
-                # This handles the Quota Exceeded error gracefully
-                if "429" in str(e):
-                    st.error("⚠️ **NotesAI is currently busy (Rate Limit).** Please wait 60 seconds and try again. This happens because we are on the Free Tier!")
-                else:
-                    st.error(f"Error: {e}")
+                st.error(f"AI Error: {e}")
 
-elif mode == "📸 Smart Note Scanner":
-    st.write("Upload your handwritten notes for an instant AI summary.")
+elif mode == "Note Scanner":
+    st.info("Upload a photo of your handwritten notes.")
     uploaded_file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
-    
     if uploaded_file:
-        col1, col2 = st.columns(2)
-        with col1:
-            img = Image.open(uploaded_file)
-            st.image(img, caption='Your Notes', use_container_width=True)
-        with col2:
-            if st.button("Summarize with NotesAI"):
-                with st.spinner("Analyzing..."):
-                    try:
-                        response = model.generate_content(["Convert these handwritten notes into clear study points.", img])
-                        st.success("Summary Ready!")
-                        st.write(response.text)
-                    except Exception as e:
-                        if "429" in str(e):
-                            st.error("⚠️ Rate Limit reached. Wait 60s.")
-                        else:
-                            st.error(f"Error: {e}")
+        img = Image.open(uploaded_file)
+        st.image(img, caption='Notes Detected', width=300)
+        if st.button("Analyze & Summarize"):
+            with st.spinner("AI is reading your handwriting..."):
+                try:
+                    response = model.generate_content(["Read this image. Transcribe the text and provide a structured summary with key points.", img])
+                    st.markdown("### 📝 AI Summary")
+                    st.write(response.text)
+                except Exception as e:
+                    st.error(f"AI Error: {e}")
 
-elif mode == "📝 Instant Quiz Maker":
-    topic = st.text_input("Enter topic for your quiz:", placeholder="e.g. French Revolution")
-    if st.button("Generate Quiz"):
-        with st.spinner("Creating questions..."):
+elif mode == "Exam Prep (Quiz)":
+    st.info("Enter a topic to generate a practice quiz.")
+    topic = st.text_input("Enter Topic (e.g., '1857 Revolt')")
+    if st.button("Generate 5-Question Quiz"):
+        with st.spinner("Creating your quiz..."):
             try:
-                response = model.generate_content(f"Create a 5 question quiz for 8th grade on {topic}. Include answers at the bottom.")
+                response = model.generate_content(f"Generate a 5-question multiple choice quiz on {topic} for an 8th-grade student. Include answers at the end.")
+                st.markdown("### ❓ Practice Quiz")
                 st.write(response.text)
             except Exception as e:
-                if "429" in str(e):
-                    st.error("⚠️ Rate Limit reached. Wait 60s.")
-                else:
-                    st.error(f"Error: {e}")
+                st.error(f"AI Error: {e}")
