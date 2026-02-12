@@ -1,6 +1,8 @@
 import streamlit as st
 import google.generativeai as genai
 from PIL import Image
+import random # Added for the new Study Tip feature
+import time   # Added for the Timer feature
 
 # 1. API Configuration
 if "GEMINI_API_KEY" in st.secrets:
@@ -60,9 +62,19 @@ with st.sidebar:
     st.metric(label="AI Latency", value="Low", delta="-0.2s")
     
     st.markdown("---")
-    st.markdown("### 📈 Daily Goal")
-    st.progress(65)
-    st.caption("65% of today's study goal reached!")
+    # NEW FEATURE: Adjustable Daily Goal
+    st.markdown("### 📈 Set Daily Goal")
+    goal_value = st.slider("Goal Progress (%)", 0, 100, 65) 
+    st.progress(goal_value)
+    st.caption(f"{goal_value}% of today's study goal reached!")
+
+    # NEW FEATURE: Focus Timer
+    st.markdown("---")
+    st.markdown("### ⏱️ Focus Timer")
+    timer_time = st.selectbox("Set Session (mins)", [15, 25, 45, 60], index=1)
+    if st.button("Start Focus Session"):
+        st.toast(f"Timer started for {timer_time} minutes. Stay focused!")
+    
     st.caption("Status: Ready for IGCSE/IB Support 🟢")
 
 # --- MAIN CONTENT GRAPHICS ---
@@ -82,12 +94,21 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+# NEW FEATURE: Study Tip of the Day
+tips = [
+    "Use active recall: Test yourself instead of just re-reading.",
+    "Space out your study sessions for better long-term memory.",
+    "Try explaining a topic to an imaginary student to find your knowledge gaps.",
+    "Take 5-minute breaks every 25 minutes (Pomodoro technique)."
+]
+st.light_bulb = random.choice(tips)
+st.info(f"💡 **Study Tip of the Day:** {st.light_bulb}")
+
 st.divider()
 
 # 3. Mode Logic
 if mode == "Tutor Chat":
     st.markdown("### 💬 Interactive Tutor")
-    # Added icons for better detail
     col_a, col_b, col_c = st.columns(3)
     col_a.markdown("📖 **IGCSE Ready**")
     col_b.markdown("🧪 **STEM Focused**")
@@ -115,7 +136,6 @@ elif mode == "Note Scanner":
     will extract the text and create a summarized 'Cheat Sheet'.
     """)
     
-    # Graphical warning with more detail
     st.warning("📸 **Photography Tip:** Ensure the paper is flat and the handwriting is legible for the best AI accuracy.")
     
     uploaded_file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
@@ -143,7 +163,6 @@ elif mode == "Exam Prep (Quiz)":
     **How to use:** Enter a specific topic to generate a 5-question mock test to challenge your understanding.
     """)
     
-    # Added extra detail icons
     st.markdown("✅ *Multiple Choice* | ✅ *Instant Results* | ✅ *Detailed Answers*")
     
     topic = st.text_input("What would you like to be tested on?", placeholder="Enter topic here...")
