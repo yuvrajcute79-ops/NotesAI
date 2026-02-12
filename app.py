@@ -8,18 +8,16 @@ if "GEMINI_API_KEY" in st.secrets:
 else:
     st.error("API Key not found in Streamlit Secrets!")
 
-# --- MODEL SELECTION (February 2026 Update) ---
-# We use gemini-2.5-flash as the primary stable model.
+# --- MODEL SELECTION ---
 try:
     model = genai.GenerativeModel('gemini-2.5-flash')
-    # Quick test to see if the model name exists
     model.generate_content("test", generation_config={"max_output_tokens": 1})
 except Exception:
-    # Fallback to the latest Preview if 2.5 is unavailable in your region
     model = genai.GenerativeModel('gemini-3-flash-preview')
 
-# 2. UI Styling (NMWS Colors: Navy & Gold)
-st.set_page_config(page_title="AI Study Lab", layout="wide")
+# 2. UI Styling & Configuration
+# Changed page_title to "NotesAI"
+st.set_page_config(page_title="NotesAI", layout="wide")
 
 st.markdown("""
     <style>
@@ -34,7 +32,11 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🎓 Universal AI Study Companion")
+# Changed title to "NotesAI" and added a short description
+st.title("🎓 NotesAI")
+st.markdown("""
+**Your all-in-one AI study partner.** NotesAI helps students simplify complex topics, scan handwritten notes for instant summaries, and generate practice quizzes to master any subject.
+""")
 st.sidebar.header("Navigation")
 mode = st.sidebar.selectbox("Choose a Study Mode", ["Tutor Chat", "Note Scanner", "Exam Prep (Quiz)"])
 
@@ -43,9 +45,10 @@ if mode == "Tutor Chat":
     st.info("Ask me anything about History, Chemistry, Math, or Physics!")
     chat_input = st.chat_input("Type your question here...")
     if chat_input:
-        with st.spinner("Thinking..."):
+        with st.spinner("NotesAI is thinking..."):
             try:
-                response = model.generate_content(f"You are a helpful academic tutor. Explain this clearly for an 8th grader: {chat_input}")
+                # Updated system prompt to use the name NotesAI
+                response = model.generate_content(f"You are NotesAI, a helpful academic tutor. Explain this clearly for an 8th grader: {chat_input}")
                 st.chat_message("assistant").write(response.text)
             except Exception as e:
                 st.error(f"AI Error: {e}")
@@ -57,7 +60,7 @@ elif mode == "Note Scanner":
         img = Image.open(uploaded_file)
         st.image(img, caption='Notes Detected', width=300)
         if st.button("Analyze & Summarize"):
-            with st.spinner("AI is reading your handwriting..."):
+            with st.spinner("NotesAI is reading your handwriting..."):
                 try:
                     response = model.generate_content(["Read this image. Transcribe the text and provide a structured summary with key points.", img])
                     st.markdown("### 📝 AI Summary")
