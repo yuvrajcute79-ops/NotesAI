@@ -35,13 +35,15 @@ st.markdown("""
         background-color: #004080;
         border: none;
         color: #ffcc00;
+        transform: scale(1.02);
     }
     .feature-card {
         background-color: white;
-        padding: 20px;
+        padding: 25px;
         border-radius: 15px;
-        box-shadow: 2px 2px 10px rgba(0,0,0,0.05);
-        margin-bottom: 10px;
+        box-shadow: 2px 2px 15px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        border-left: 5px solid #002366;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -54,25 +56,29 @@ with st.sidebar:
     
     st.divider()
     st.markdown("### 📊 Learning Dashboard")
-    # Removed model version, added metrics
     st.metric(label="System Status", value="Active", delta="100% Uptime")
     st.metric(label="AI Latency", value="Low", delta="-0.2s")
+    
+    st.markdown("---")
+    st.markdown("### 📈 Daily Goal")
+    st.progress(65)
+    st.caption("65% of today's study goal reached!")
     st.caption("Status: Ready for IGCSE/IB Support 🟢")
 
 # --- MAIN CONTENT GRAPHICS ---
 col1, col2 = st.columns([1, 4])
 with col1:
-    st.image("https://cdn-icons-png.flaticon.com/512/5190/5190714.png", width=80)
+    st.image("https://cdn-icons-png.flaticon.com/512/5190/5190714.png", width=100)
 with col2:
     st.title("NotesAI")
     st.subheader("Your Intelligent STEM Study Partner")
 
+# Updated Description based on your request
 st.markdown("""
 <div class="feature-card">
     <strong>Welcome to the future of studying!</strong><br>
-    NotesAI is designed specifically for <strong>Neerja Modi World School</strong> students to bridge the gap between 
-    handwritten notes and digital mastery. Our engine can decipher complex handwriting, explain 
-    intricate STEM concepts, and verify your knowledge through adaptive testing.
+    It is designed specifically for <strong>Students</strong> to bridge the gap between handwritten notes and digital mastery. 
+    Our AI engine can decipher complex handwriting, simplify concepts and verify your knowledge through our quiz feature.
 </div>
 """, unsafe_allow_html=True)
 
@@ -81,9 +87,15 @@ st.divider()
 # 3. Mode Logic
 if mode == "Tutor Chat":
     st.markdown("### 💬 Interactive Tutor")
+    # Added icons for better detail
+    col_a, col_b, col_c = st.columns(3)
+    col_a.markdown("📖 **IGCSE Ready**")
+    col_b.markdown("🧪 **STEM Focused**")
+    col_c.markdown("⚡ **Instant Help**")
+    
     st.write("""
     **How to use:** Type any concept you're struggling with in the chat box below. 
-    NotesAI is trained on IGCSE and IBDP curricula to provide age-appropriate explanations.
+    NotesAI provides age-appropriate explanations for your syllabus.
     """)
     st.info("💡 **Try asking:** 'Explain the importance of the 1857 Revolt' or 'What is a Catalyst in Chemistry?'")
     
@@ -99,10 +111,12 @@ if mode == "Tutor Chat":
 elif mode == "Note Scanner":
     st.markdown("### 📸 Vision Scanner")
     st.write("""
-    **How to use:** Upload a clear photo of your notebook or textbook. Our computer vision 
-    technology will extract the text and create a summarized 'Cheat Sheet' for your exams.
+    **How to use:** Upload a clear photo of your notebook. Our computer vision 
+    will extract the text and create a summarized 'Cheat Sheet'.
     """)
-    st.warning("⚠️ **For best results:** Ensure the handwriting is legible and the lighting is bright.")
+    
+    # Graphical warning with more detail
+    st.warning("📸 **Photography Tip:** Ensure the paper is flat and the handwriting is legible for the best AI accuracy.")
     
     uploaded_file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
     
@@ -126,9 +140,12 @@ elif mode == "Note Scanner":
 elif mode == "Exam Prep (Quiz)":
     st.markdown("### 📝 Quiz Generator")
     st.write("""
-    **How to use:** Enter a specific topic (e.g., 'Plant Cells' or 'Algebraic Identities'). 
-    NotesAI will generate a 5-question mock test to challenge your understanding.
+    **How to use:** Enter a specific topic to generate a 5-question mock test to challenge your understanding.
     """)
+    
+    # Added extra detail icons
+    st.markdown("✅ *Multiple Choice* | ✅ *Instant Results* | ✅ *Detailed Answers*")
+    
     topic = st.text_input("What would you like to be tested on?", placeholder="Enter topic here...")
     
     if st.button("🔥 Generate 5-Question Quiz"):
