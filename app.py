@@ -155,7 +155,7 @@ if mode == "Tutor Chat":
         "Economics": "Macro/Micro dynamics and market analysis."
     }
     
-    [Image of a library of academic books and a brain icon representing diverse knowledge]
+    
     
     st.caption(f"🧠 **System Configuration:** {details[subj]} | **Support:** All Grades/Levels")
     
@@ -163,4 +163,58 @@ if mode == "Tutor Chat":
     if c_input:
         with st.spinner(f"NotesAI {subj} Core is processing..."):
             try:
-                p = f"You are Notes
+                p = f"You are NotesAI, a world-class {subj} expert. Provide a detailed, clear, and high-level explanation for: {c_input}"
+                resp = model.generate_content(p)
+                with st.chat_message("assistant", avatar="🎓"):
+                    st.markdown(f"### {subj} Insights")
+                    st.write(resp.text)
+                    st.caption("Context: Universal Academic Knowledge Base")
+            except Exception as e:
+                st.error(f"Engine Timeout: {e}")
+
+elif mode == "Note Scanner":
+    st.markdown("## 📸 Vision Analysis Core")
+    st.write("Convert complex handwritten data into structured digital intelligence.")
+    
+    
+    
+    up_file = st.file_uploader("📂 Input Handwritten Document", type=["jpg", "png", "jpeg"])
+    
+    if up_file:
+        img = Image.open(up_file)
+        c1, c2 = st.columns(2)
+        with c1:
+            st.image(img, caption='Raw Visual Data', use_container_width=True)
+        with c2:
+            if st.button("✨ DEPLOY VISION ANALYSIS"):
+                with st.spinner("Decoding handwriting and mapping concepts..."):
+                    try:
+                        r = model.generate_content(["Perform deep transcription. Provide a summary, a glossary of terms, and a list of inferred formulas.", img])
+                        st.success("Intelligence Extracted!")
+                        st.markdown("### 📝 Digital Summary")
+                        st.write(r.text)
+                        st.download_button("📥 Export Intelligence (.txt)", r.text, "NotesAI_Export.txt")
+                    except Exception as e:
+                        st.error(f"Vision Error: {e}")
+
+elif mode == "Exam Prep (Quiz)":
+    st.markdown("## 📝 Adaptive Assessment Engine")
+    d_level = st.select_slider("Intensity Level:", options=["Elementary", "Intermediate", "Advanced", "Elite / PhD"], value="Intermediate")
+    
+    
+
+    topic = st.text_input("Define Assessment Topic:", placeholder="e.g., Quantum Mechanics or Civil War Politics")
+    
+    if st.button("🔥 GENERATE ASSESSMENT"):
+        with st.spinner(f"Architecting {d_level} level challenge..."):
+            try:
+                r = model.generate_content(f"Generate a 5-question {d_level} difficulty multiple-choice exam on {topic}. Provide the answer key separately at the bottom.")
+                st.balloons()
+                st.markdown(f"### ❓ {d_level} Exam: {topic}")
+                st.write(r.text)
+                st.download_button("📥 Save Exam", r.text, "Exam_Paper.txt")
+            except Exception as e:
+                st.error(f"Generation Failed: {e}")
+
+st.divider()
+st.caption("NotesAI Pro Framework v4.2 | Universal Grade Support Enabled | © 2026 STEM Excellence")
