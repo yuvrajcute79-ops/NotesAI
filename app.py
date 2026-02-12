@@ -1,7 +1,6 @@
 import streamlit as st
 import google.generativeai as genai
 from PIL import Image
-import time
 
 # 1. API Configuration
 if "GEMINI_API_KEY" in st.secrets:
@@ -9,100 +8,93 @@ if "GEMINI_API_KEY" in st.secrets:
 else:
     st.error("API Key not found in Streamlit Secrets!")
 
-model = genai.GenerativeModel('gemini-2.0-flash')
+# Model Selection - Using the stable 2.0 version
+try:
+    model = genai.GenerativeModel('gemini-2.0-flash')
+except Exception:
+    model = genai.GenerativeModel('gemini-1.5-flash-latest')
 
-# 2. THE CHATGPT DARK UI & ANIMATION
-st.set_page_config(page_title="NotesAI | Studio", page_icon="⚡", layout="wide")
+# 2. UI CUSTOMIZATION (Back to the high-quality NMWS look)
+st.set_page_config(page_title="NotesAI | NMWS Hub", page_icon="🎓", layout="wide")
 
 st.markdown("""
     <style>
-    /* ChatGPT Dark Background */
-    .stApp {
-        background-color: #212121;
-        color: #ececec;
+    /* Main Background */
+    .stApp { background-color: #f0f2f6; }
+    
+    /* Sidebar: Navy Blue */
+    section[data-testid="stSidebar"] {
+        background-color: #002366 !important;
+        color: white;
+    }
+    section[data-testid="stSidebar"] .stMarkdown h1, h2, h3, p {
+        color: white !important;
+    }
+
+    /* Buttons: Professional Navy */
+    div.stButton > button:first-child {
+        background-color: #002366;
+        color: white;
+        border-radius: 10px;
+        font-weight: bold;
+        height: 3.5em;
+        width: 100%;
+        border: none;
+        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
     }
     
-    /* Center the main content area */
-    .block-container {
-        max-width: 800px;
-        padding-top: 2rem;
-    }
-
-    /* Sidebar Styling */
-    section[data-testid="stSidebar"] {
-        background-color: #171717 !important;
-    }
-
-    /* Custom 'Study-Thinking' Animation */
-    @keyframes rotateSymbols {
-        0% { transform: rotate(0deg); opacity: 0; }
-        50% { opacity: 1; }
-        100% { transform: rotate(360deg); opacity: 0; }
-    }
-    .thinking-container {
-        display: flex;
-        align-items: center;
-        gap: 15px;
-        padding: 10px;
-        color: #ab9ff2;
-        font-family: monospace;
-    }
-    .math-icon {
-        font-size: 24px;
-        animation: rotateSymbols 2s linear infinite;
-    }
-
-    /* Input Box Styling */
-    .stChatInputContainer {
-        padding-bottom: 20px;
-    }
+    /* Input field focus */
+    .stChatInputContainer { padding-bottom: 20px; }
     </style>
     """, unsafe_allow_html=True)
 
-# Define the custom thinking animation as a function
-def study_spinner():
-    return st.markdown("""
-        <div class="thinking-container">
-            <div class="math-icon">π</div>
-            <div class="math-icon" style="animation-delay: 0.5s">H₂O</div>
-            <div class="math-icon" style="animation-delay: 1s">Σ</div>
-            <span>NotesAI is analyzing equations...</span>
-        </div>
-    """, unsafe_allow_html=True)
-
-# --- APP LAYOUT ---
-st.title("⚡ NotesAI")
-st.markdown("---")
-
-# Sidebar
-st.sidebar.title("NotesAI Tools")
-mode = st.sidebar.radio("Switch View", ["💬 Tutor Chat", "📷 Scanner", "📝 Quiz Builder"])
-
+# Branding Assets
 GEMINI_LOGO = "https://www.gstatic.com/lamda/images/gemini_sparkle_v002_d47353047313511b7d3f2.svg"
 
-# 3. MODE LOGIC
-if mode == "💬 Tutor Chat":
-    chat_input = st.chat_input("Ask NotesAI anything...")
+# --- SIDEBAR ---
+st.sidebar.title("⚡ NotesAI")
+st.sidebar.markdown("NMWS STEM Exhibition 2026")
+st.sidebar.markdown("---")
+mode = st.sidebar.radio("CHOOSE TOOL:", ["🧠 24/7 Personal Tutor", "📸 Smart Note Scanner", "📝 Instant Quiz Maker"])
+
+# --- MAIN CONTENT ---
+st.title(f"🎓 {mode}")
+
+if mode == "🧠 24/7 Personal Tutor":
+    st.info("Ask NotesAI about your IGCSE or IB syllabus topics.")
+    chat_input = st.chat_input("Ask a question...")
     
     if chat_input:
         st.chat_message("user").write(chat_input)
         
-        # Trigger the custom "Thinking" animation
-        thinking_placeholder = st.empty()
-        with thinking_placeholder:
-            study_spinner()
-            
-        try:
-            # Generate response
-            response = model.generate_content(f"You are NotesAI, a professional 8th grade tutor. Explain: {chat_input}")
-            
-            # Remove animation and show answer
-            thinking_placeholder.empty()
-            with st.chat_message("assistant", avatar=GEMINI_LOGO):
-                st.markdown("**NotesAI**")
-                st.write(response.text)
-        except Exception as e:
-            thinking_placeholder.empty()
-            st.error(f"Error: {e}")
+        with st.spinner("NotesAI is processing your query..."):
+            try:
+                with st.chat_message("assistant", avatar=GEMINI_LOGO):
+                    st.markdown("**NotesAI**")
+                    response = model.generate_content(f"You are NotesAI, a tutor for an 8th grade NMWS student. Topic: {chat_input}")
+                    st.write(response.text)
+            except Exception as e:
+                st.error(f"Error: {e}")
 
-# (Note: Keep Scanner and Quiz logic from previous code here)
+elif mode == "📸 Smart Note Scanner":
+    st.write("Upload your handwritten notes for an instant AI summary.")
+    uploaded_file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
+    
+    if uploaded_file:
+        col1, col2 = st.columns(2)
+        with col1:
+            img = Image.open(uploaded_file)
+            st.image(img, caption='Your Notes', use_container_width=True)
+        with col2:
+            if st.button("Summarize with NotesAI"):
+                with st.spinner("Analyzing..."):
+                    response = model.generate_content(["Convert these notes into study points.", img])
+                    st.success("Summary Ready!")
+                    st.write(response.text)
+
+elif mode == "📝 Instant Quiz Maker":
+    topic = st.text_input("Enter topic for your quiz:", placeholder="e.g. Rate of Reaction")
+    if st.button("Generate Quiz"):
+        with st.spinner("Creating questions..."):
+            response = model.generate_content(f"Create a 5 question quiz for 8th grade on {topic}. Answers at bottom.")
+            st.write(response.text)
