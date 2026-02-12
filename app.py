@@ -8,81 +8,123 @@ if "GEMINI_API_KEY" in st.secrets:
 else:
     st.error("API Key not found in Streamlit Secrets!")
 
-model = genai.GenerativeModel('gemini-2.0-flash')
+# --- MODEL SELECTION ---
+try:
+    model = genai.GenerativeModel('gemini-2.5-flash')
+    model.generate_content("test", generation_config={"max_output_tokens": 1})
+except Exception:
+    model = genai.GenerativeModel('gemini-3-flash-preview')
 
-# 2. UI STYLING (The Black Bar + Clickable Pill)
-st.set_page_config(page_title="NotesAI", page_icon="🎓", layout="wide")
+# 2. UI Styling & Configuration
+st.set_page_config(page_title="NotesAI", layout="wide", page_icon="🎓")
 
 st.markdown("""
     <style>
-    /* Main Background */
-    .stApp { background-color: #f0f2f6; }
-
-    /* The Rounded Black Input Container Style */
-    div[data-testid="stChatInput"] {
-        background-color: #2f2f2f !important;
-        border: 1.5px solid #ff7066 !important;
-        border-radius: 25px !important;
-        padding: 5px 15px !important;
+    .main { background-color: #f0f2f6; }
+    div.stButton > button:first-child {
+        background-color: #002366;
+        color: white;
+        border-radius: 10px;
+        height: 3em;
+        width: 100%;
+        font-weight: bold;
+        border: none;
+        transition: 0.3s;
     }
-
-    /* Styling for the clickable mode pills */
-    .st-emotion-cache-18ni7ap { display: none; } /* Hide default sidebar if you want it all in the bar */
-    
-    .pill-container {
-        display: flex;
-        align-items: center;
-        background-color: #2f2f2f;
-        padding: 10px 20px;
-        border-radius: 25px 25px 0 0;
-        border: 1.5px solid #ff7066;
-        border-bottom: none;
-        width: fit-content;
-        margin-left: 20px;
-        gap: 15px;
+    div.stButton > button:hover {
+        background-color: #004080;
+        border: none;
+        color: #ffcc00;
     }
-    
-    .tool-label { color: white; font-weight: bold; font-size: 14px; }
+    /* Style for the cards */
+    .feature-card {
+        background-color: white;
+        padding: 20px;
+        border-radius: 15px;
+        box-shadow: 2px 2px 10px rgba(0,0,0,0.05);
+        margin-bottom: 10px;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# 3. SELECTABLE PILL MENU (Using Streamlit's native buttons styled as pills)
-st.title("🎓 NotesAI")
-st.markdown("Select your study tool and type your request below.")
+# --- SIDEBAR GRAPHICS ---
+with st.sidebar:
+    # Adding a professional study-themed image to the sidebar
+    st.image("https://img.freepik.com/free-vector/online-education-concept-illustration_114360-8422.jpg", use_container_width=True)
+    st.header("📌 Navigation")
+    mode = st.selectbox("Choose a Study Mode", ["Tutor Chat", "Note Scanner", "Exam Prep (Quiz)"])
+    st.divider()
+    st.markdown("### 🛠️ App Stats")
+    st.caption("Model: Gemini 2.5 Flash")
+    st.caption("Status: Online 🟢")
 
-# Horizontal Menu (This acts as your clickable 'Fast' switcher)
-col1, col2, col3, col4 = st.columns([1, 2, 2, 2])
+# --- MAIN CONTENT GRAPHICS ---
+col1, col2 = st.columns([1, 4])
 with col1:
-    st.markdown("**+ Tools**")
+    # A smaller logo/icon next to the title
+    st.image("https://cdn-icons-png.flaticon.com/512/5190/5190714.png", width=80)
 with col2:
-    if st.button("💬 Tutor Chat"): st.session_state.mode = "Tutor Chat"
-with col3:
-    if st.button("📸 Note Scanner"): st.session_state.mode = "Note Scanner"
-with col4:
-    if st.button("📝 Quiz Practice"): st.session_state.mode = "Quiz Practice"
+    st.title("NotesAI")
+    st.subheader("Your Intelligent STEM Study Partner")
 
-# Default Mode
-if 'mode' not in st.session_state:
-    st.session_state.mode = "Tutor Chat"
+# Feature Description using a styled container
+st.markdown("""
+<div class="feature-card">
+    <strong>Welcome to the future of studying!</strong><br>
+    NotesAI uses advanced Generative AI to act as your personal tutor. Whether you're preparing for 
+    your 8th-grade finals or just curious about Chemistry, we've got you covered.
+</div>
+""", unsafe_allow_html=True)
 
-current_mode = st.session_state.mode
-st.info(f"Currently using: **{current_mode}**")
+st.divider()
 
-# 4. CHAT & TOOL LOGIC
-if current_mode == "Tutor Chat":
-    chat_input = st.chat_input(f"Type your question for {current_mode}...")
+# 3. Mode Logic
+if mode == "Tutor Chat":
+    st.markdown("### 💬 Interactive Tutor")
+    st.info("Tip: Ask about the 'Revolt of 1857' or 'Rate of Chemical Reactions'!")
+    chat_input = st.chat_input("Type your question here...")
     if chat_input:
-        with st.chat_message("assistant"):
-            st.write(model.generate_content(chat_input).text)
+        with st.spinner("NotesAI is thinking..."):
+            try:
+                response = model.generate_content(f"You are NotesAI, a helpful academic tutor. Explain this clearly for an 8th grader: {chat_input}")
+                st.chat_message("assistant", avatar="🎓").write(response.text)
+            except Exception as e:
+                st.error(f"AI Error: {e}")
 
-elif current_mode == "Note Scanner":
-    uploaded_file = st.file_uploader("Upload Notes", type=["jpg", "png", "jpeg"])
-    chat_input = st.chat_input("Ask something about the notes above...")
-    if uploaded_file and chat_input:
+elif mode == "Note Scanner":
+    st.markdown("### 📸 Vision Scanner")
+    st.info("NotesAI can read handwritten text and organize it into study points.")
+    uploaded_file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
+    
+    if uploaded_file:
         img = Image.open(uploaded_file)
-        st.write(model.generate_content([chat_input, img]).text)
+        # Using columns to show image and summary side-by-side
+        img_col, text_col = st.columns(2)
+        with img_col:
+            st.image(img, caption='Uploaded Notes', use_container_width=True)
+        
+        with text_col:
+            if st.button("✨ Analyze & Summarize"):
+                with st.spinner("NotesAI is reading your handwriting..."):
+                    try:
+                        response = model.generate_content(["Read this image. Transcribe the text and provide a structured summary with key points.", img])
+                        st.success("Analysis Complete!")
+                        st.markdown("---")
+                        st.write(response.text)
+                    except Exception as e:
+                        st.error(f"AI Error: {e}")
 
-elif current_mode == "Quiz Practice":
-    chat_input = st.chat_input("Enter topic to generate quiz...")
-    if chat_input:
-        st.write(model.generate_content(f"Generate 5 quiz questions on {chat_input}").text)
+elif mode == "Exam Prep (Quiz)":
+    st.markdown("### 📝 Quiz Generator")
+    st.info("Test your knowledge! Enter any topic to generate a custom 5-question test.")
+    topic = st.text_input("Enter Topic (e.g., '1857 Revolt')", placeholder="Type here...")
+    
+    if st.button("🔥 Generate 5-Question Quiz"):
+        with st.spinner("Creating your quiz..."):
+            try:
+                response = model.generate_content(f"Generate a 5-question multiple choice quiz on {topic} for an 8th-grade student. Include answers at the end.")
+                st.balloons() # Adding a fun graphic effect
+                st.markdown("### ❓ Practice Quiz")
+                st.write(response.text)
+            except Exception as e:
+                st.error(f"AI Error: {e}")
