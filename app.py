@@ -8,99 +8,81 @@ if "GEMINI_API_KEY" in st.secrets:
 else:
     st.error("API Key not found in Streamlit Secrets!")
 
-# Model Selection
-try:
-    model = genai.GenerativeModel('gemini-2.0-flash')
-except Exception:
-    model = genai.GenerativeModel('gemini-1.5-flash-latest')
+model = genai.GenerativeModel('gemini-2.0-flash')
 
-# 2. ADVANCED UI CUSTOMIZATION
+# 2. UI STYLING (The Black Bar + Clickable Pill)
 st.set_page_config(page_title="NotesAI", page_icon="🎓", layout="wide")
 
-# Custom CSS to match the image you sent
 st.markdown("""
     <style>
-    /* Dark Theme for Input area */
-    .stChatInputContainer {
-        padding: 20px;
-        background-color: transparent;
-    }
-    
-    /* The Rounded Black Input Bar */
+    /* Main Background */
+    .stApp { background-color: #f0f2f6; }
+
+    /* The Rounded Black Input Container Style */
     div[data-testid="stChatInput"] {
         background-color: #2f2f2f !important;
-        border: 1.5px solid #ff7066 !important; /* The red border from your pic */
+        border: 1.5px solid #ff7066 !important;
         border-radius: 25px !important;
-        padding: 10px 15px !important;
+        padding: 5px 15px !important;
     }
 
-    /* Styling the placeholder text */
-    textarea[data-testid="stChatInputTextArea"] {
-        color: #ffffff !important;
-    }
-
-    /* "Tools" and Mode Labels inside the bar */
-    .input-tools-overlay {
+    /* Styling for the clickable mode pills */
+    .st-emotion-cache-18ni7ap { display: none; } /* Hide default sidebar if you want it all in the bar */
+    
+    .pill-container {
         display: flex;
         align-items: center;
-        gap: 10px;
-        padding-top: 5px;
-        font-family: sans-serif;
+        background-color: #2f2f2f;
+        padding: 10px 20px;
+        border-radius: 25px 25px 0 0;
+        border: 1.5px solid #ff7066;
+        border-bottom: none;
+        width: fit-content;
+        margin-left: 20px;
+        gap: 15px;
     }
-    .tool-plus { color: #ffffff; font-size: 20px; font-weight: bold; }
-    .tool-text { color: #bbbbbb; font-size: 14px; }
-    .mode-pill {
-        background-color: #3e3e3e;
-        color: white;
-        padding: 2px 12px;
-        border-radius: 15px;
-        font-size: 12px;
-        border: 1px solid #555;
-    }
-    .mode-dot { color: #448aff; margin-left: 5px; }
+    
+    .tool-label { color: white; font-weight: bold; font-size: 14px; }
     </style>
     """, unsafe_allow_html=True)
 
-# 3. SIDEBAR NAVIGATION
-st.sidebar.title("⚡ NotesAI")
-st.sidebar.markdown("NMWS STEM Project 2026")
-st.sidebar.markdown("---")
-mode = st.sidebar.radio("SWITCH MODE:", ["Tutor Chat", "Note Scanner", "Quiz Practice"])
-
-# --- MAIN UI ---
+# 3. SELECTABLE PILL MENU (Using Streamlit's native buttons styled as pills)
 st.title("🎓 NotesAI")
-st.markdown("Your all-in-one AI study partner for simplifying topics and mastering exams.")
+st.markdown("Select your study tool and type your request below.")
 
-# Creating the visual "Tools" overlay that mimics your image
-st.markdown(f"""
-    <div class="input-tools-overlay">
-        <span class="tool-plus">+</span>
-        <span class="tool-text">Tools</span>
-        <div class="mode-pill">{mode}<span class="mode-dot">●</span></div>
-    </div>
-    """, unsafe_allow_html=True)
+# Horizontal Menu (This acts as your clickable 'Fast' switcher)
+col1, col2, col3, col4 = st.columns([1, 2, 2, 2])
+with col1:
+    st.markdown("**+ Tools**")
+with col2:
+    if st.button("💬 Tutor Chat"): st.session_state.mode = "Tutor Chat"
+with col3:
+    if st.button("📸 Note Scanner"): st.session_state.mode = "Note Scanner"
+with col4:
+    if st.button("📝 Quiz Practice"): st.session_state.mode = "Quiz Practice"
 
-# 4. CHAT LOGIC
-if mode == "Tutor Chat":
-    chat_input = st.chat_input("Type your question here...")
+# Default Mode
+if 'mode' not in st.session_state:
+    st.session_state.mode = "Tutor Chat"
+
+current_mode = st.session_state.mode
+st.info(f"Currently using: **{current_mode}**")
+
+# 4. CHAT & TOOL LOGIC
+if current_mode == "Tutor Chat":
+    chat_input = st.chat_input(f"Type your question for {current_mode}...")
     if chat_input:
-        st.chat_message("user").write(chat_input)
-        with st.spinner("NotesAI is thinking..."):
-            response = model.generate_content(f"Explain this clearly for an 8th grader: {chat_input}")
-            with st.chat_message("assistant"):
-                st.markdown("**NotesAI**")
-                st.write(response.text)
+        with st.chat_message("assistant"):
+            st.write(model.generate_content(chat_input).text)
 
-elif mode == "Note Scanner":
-    st.info("Upload notes to summarize.")
-    uploaded_file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
-    if uploaded_file and st.button("Summarize"):
+elif current_mode == "Note Scanner":
+    uploaded_file = st.file_uploader("Upload Notes", type=["jpg", "png", "jpeg"])
+    chat_input = st.chat_input("Ask something about the notes above...")
+    if uploaded_file and chat_input:
         img = Image.open(uploaded_file)
-        response = model.generate_content(["Summarize these notes:", img])
-        st.write(response.text)
+        st.write(model.generate_content([chat_input, img]).text)
 
-elif mode == "Quiz Practice":
-    topic = st.text_input("Enter Topic")
-    if st.button("Generate Quiz"):
-        response = model.generate_content(f"Create a 5 question quiz on {topic}")
-        st.write(response.text)
+elif current_mode == "Quiz Practice":
+    chat_input = st.chat_input("Enter topic to generate quiz...")
+    if chat_input:
+        st.write(model.generate_content(f"Generate 5 quiz questions on {chat_input}").text)
