@@ -12,13 +12,16 @@ else:
 
 # --- MODEL SELECTION ---
 try:
-    model = genai.GenerativeModel('gemini-2.5-flash')
-    model.generate_content("test", generation_config={"max_output_tokens": 1})
+    model = genai.GenerativeModel('gemini-2.0-flash')
 except Exception:
-    model = genai.GenerativeModel('gemini-3-flash-preview')
+    model = genai.GenerativeModel('gemini-1.5-flash')
 
 # 2. UI Styling & Configuration
-st.set_page_config(page_title="NotesAI", layout="wide", page_icon="🎓")
+st.set_page_config(page_title="NotesAI Pro", layout="wide", page_icon="🎓")
+
+# Initialize Chat History
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
 st.markdown("""
     <style>
@@ -47,9 +50,6 @@ st.markdown("""
         margin-bottom: 20px;
         border-left: 5px solid #002366;
     }
-    .stProgress > div > div > div > div {
-        background-color: #002366;
-    }
     .timer-box {
         font-size: 40px;
         font-weight: bold;
@@ -69,7 +69,11 @@ with st.sidebar:
     st.header("📌 Navigation")
     mode = st.selectbox("Choose a Study Mode", ["Tutor Chat", "Note Scanner", "Exam Prep (Quiz)"])
     
+    # NEW FEATURE: Language Support
     st.divider()
+    language = st.selectbox("🌍 Learning Language", ["English", "Spanish", "French", "German", "Hindi"])
+
+    st.markdown("---")
     st.markdown("### 📊 Learning Dashboard")
     st.metric(label="System Status", value="Active", delta="100% Uptime")
     
@@ -88,7 +92,7 @@ with st.sidebar:
     else:
         st.success(f"Level: Master Scholar ({progress_percentage}%)")
 
-    # FOCUS TIMER (ACTUAL TICKING TIMER)
+    # FOCUS TIMER
     st.markdown("---")
     st.markdown("### ⏱️ Live Focus Timer")
     timer_minutes = st.number_input("Set Timer (mins)", min_value=1, max_value=120, value=25)
@@ -104,67 +108,61 @@ with st.sidebar:
         timer_display.success("⏰ Time's Up! Take a break.")
         st.balloons()
     
-    st.caption("Status: Ready for IGCSE/IB Support 🟢")
+    st.caption(f"Status: Ready for IGCSE/IB Support 🟢 ({language})")
 
-# --- MAIN CONTENT GRAPHICS ---
+# --- MAIN CONTENT ---
 col1, col2 = st.columns([1, 4])
 with col1:
     st.image("https://cdn-icons-png.flaticon.com/512/5190/5190714.png", width=100)
 with col2:
-    st.title("NotesAI")
+    st.title("NotesAI Pro")
     st.subheader("Your Intelligent Academic Study Partner")
 
 st.markdown("""
 <div class="feature-card">
-    <strong>Welcome to the future of studying!</strong><br>
-    It is designed specifically for <strong>Students</strong> to bridge the gap between handwritten notes and digital mastery. 
-    Our AI engine can decipher complex handwriting, simplify concepts and verify your knowledge through our quiz feature.
+    <strong>Welcome to the Pro Edition!</strong><br>
+    Bridging the gap between handwritten notes and digital mastery. Now supporting multi-language explanations and persistent chat history.
 </div>
 """, unsafe_allow_html=True)
 
-# STUDY TIP
 tips = [
     "Use active recall: Test yourself instead of just re-reading.",
     "Space out your study sessions for better long-term memory.",
     "Try explaining a topic to an imaginary student to find your knowledge gaps.",
     "Take 5-minute breaks every 25 minutes (Pomodoro technique)."
 ]
-st.info(f"💡 **Study Tip of the Day:** {random.choice(tips)}")
+st.info(f"💡 **Study Tip:** {random.choice(tips)}")
 
 st.divider()
 
 # --- MODE LOGIC ---
 if mode == "Tutor Chat":
     st.markdown("### 💬 Interactive Tutor")
-    # UPDATED FEATURE: Subject Specialization with English added
     subject = st.radio("Focus Area:", ["General", "Science", "History", "Math", "English"], horizontal=True)
     
-    # Subject Specific Details
-    details = {
-        "General": "Broad knowledge support across various curricula.",
-        "Science": "Physics, Chemistry, and Biology collision theory & formulas.",
-        "History": "Timeline of events, key figures, and deep analysis.",
-        "Math": "Step-by-step problem solving and geometric proofs.",
-        "English": "Grammar, Literature analysis, and creative writing feedback."
-    }
-    st.caption(f"🎯 **Subject Focus:** {details[subject]}")
-    
-    st.write(f"**How to use:** Ask any {subject} question below for an age-appropriate explanation.")
-    
-    chat_input = st.chat_input("Type your question here...")
+    # NEW FEATURE: Display History
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    chat_input = st.chat_input("Ask a question...")
     if chat_input:
-        with st.spinner(f"NotesAI {subject} Specialist is thinking..."):
+        st.session_state.messages.append({"role": "user", "content": chat_input})
+        with st.chat_message("user"):
+            st.markdown(chat_input)
+
+        with st.spinner(f"NotesAI {subject} Specialist is thinking in {language}..."):
             try:
-                prompt = f"You are NotesAI, a specialist {subject} tutor for an 8th grader. Explain this clearly: {chat_input}"
+                prompt = f"Role: Specialist {subject} tutor for 8th grade. Language: {language}. Task: Explain {chat_input}"
                 response = model.generate_content(prompt)
-                st.chat_message("assistant", avatar="🎓").write(response.text)
+                st.session_state.messages.append({"role": "assistant", "content": response.text})
+                with st.chat_message("assistant", avatar="🎓"):
+                    st.write(response.text)
             except Exception as e:
                 st.error(f"AI Error: {e}")
 
 elif mode == "Note Scanner":
     st.markdown("### 📸 Vision Scanner")
-    st.write("Upload a photo of your notebook to create a summarized 'Cheat Sheet'.")
-    
     uploaded_file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
     
     if uploaded_file:
@@ -174,31 +172,34 @@ elif mode == "Note Scanner":
             st.image(img, caption='Uploaded Notes', use_container_width=True)
         
         with text_col:
+            analysis_type = st.radio("Scanner Mode", ["Standard Summary", "Extract Formulas", "Key Dates & Names"])
             if st.button("✨ Analyze & Summarize"):
-                with st.spinner("Extracting key concepts..."):
+                with st.spinner("Decoding notes..."):
                     try:
-                        response = model.generate_content(["Provide a structured summary of these notes with key terms and definitions.", img])
-                        st.success("Data Extraction Complete!")
-                        st.markdown("#### 📝 Notes Summary")
+                        # NEW FEATURE: Targeted Extraction
+                        prompt = f"In {language}, provide a structured {analysis_type} of these notes. Extract specific {analysis_type} if visible."
+                        response = model.generate_content([prompt, img])
+                        st.success("Extraction Complete!")
                         st.write(response.text)
-                        st.download_button(label="📥 Download Study Summary", data=response.text, file_name="study_notes.txt", mime="text/plain")
+                        st.download_button(label="📥 Download Study Summary", data=response.text, file_name="study_notes.txt")
                     except Exception as e:
                         st.error(f"AI Error: {e}")
 
 elif mode == "Exam Prep (Quiz)":
     st.markdown("### 📝 Quiz Generator")
     diff = st.select_slider("Select Difficulty:", options=["Easy", "Medium", "Hard"], value="Medium")
-    
-    topic = st.text_input("What topic would you like to be tested on?", placeholder="Enter topic here...")
+    topic = st.text_input("Topic for test:")
     
     if st.button("🔥 Generate Practice Quiz"):
-        with st.spinner(f"Generating {diff} difficulty test..."):
+        with st.spinner(f"Architecting {diff} test..."):
             try:
-                response = model.generate_content(f"Generate a 5-question {diff} level multiple choice quiz on {topic} for an 8th-grade student. Include answers at the end.")
+                # NEW FEATURE: Structured Quiz Formatting
+                prompt = f"Create a 5-question {diff} quiz in {language} about {topic} for 8th grade. Use MCQ format. Hide the answers at the very bottom."
+                response = model.generate_content(prompt)
+                st.session_state.last_quiz = response.text
                 st.balloons() 
-                st.markdown("---")
-                st.markdown(f"### ❓ {diff} Practice Quiz: {topic}")
-                st.write(response.text)
-                st.download_button(label="📥 Download Quiz for Later", data=response.text, file_name="quiz.txt", mime="text/plain")
+                st.markdown(f"### ❓ {diff} Quiz: {topic}")
+                st.write(st.session_state.last_quiz)
+                st.download_button(label="📥 Download Quiz", data=st.session_state.last_quiz, file_name="quiz.txt")
             except Exception as e:
                 st.error(f"AI Error: {e}")
