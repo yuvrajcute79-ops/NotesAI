@@ -17,11 +17,30 @@ try:
 except Exception:
     model = genai.GenerativeModel('gemini-1.5-flash')
 
-# --- 2. ACCOUNT SYSTEM (The Market-Ready Gateway) ---
+# --- 2. RESTING LOGIC (Handles Quota/429 Errors) ---
+def safe_ai_call(prompt_data):
+    try:
+        response = model.generate_content(prompt_data)
+        return response.text
+    except Exception as e:
+        if "429" in str(e):
+            st.info("😴 **NotesAI is taking a quick power nap...**")
+            st.caption("The AI engine is refreshing its memory. Please wait 60 seconds.")
+            progress_bar = st.progress(0)
+            for percent_complete in range(100):
+                time.sleep(0.6) # 60 seconds total
+                progress_bar.progress(percent_complete + 1)
+            st.success("✨ AI is awake! Please click the button again.")
+            return None
+        else:
+            st.error(f"AI Error: {e}")
+            return None
+
+# --- 3. ACCOUNT SYSTEM ---
 if 'authenticated' not in st.session_state:
     st.session_state.authenticated = False
 if 'user_db' not in st.session_state:
-    st.session_state.user_db = {"admin": "password123"} # Default demo account
+    st.session_state.user_db = {"admin": "password123"} 
 
 def login_page():
     st.markdown("""
@@ -30,9 +49,7 @@ def login_page():
             <p>Please Sign In to access the Universal Learning Engine</p>
         </div>
     """, unsafe_allow_html=True)
-    
     tab1, tab2 = st.tabs(["🔐 Login", "📝 Sign Up"])
-    
     with tab1:
         u_email = st.text_input("Email/Username", key="login_user")
         u_pass = st.text_input("Password", type="password", key="login_pass")
@@ -42,8 +59,7 @@ def login_page():
                 st.session_state.current_user = u_email
                 st.rerun()
             else:
-                st.error("Invalid credentials. Try 'admin' and 'password123'")
-
+                st.error("Invalid credentials.")
     with tab2:
         new_user = st.text_input("Choose Username", key="reg_user")
         new_pass = st.text_input("Create Password", type="password", key="reg_pass")
@@ -51,16 +67,13 @@ def login_page():
         if st.button("Create Student Profile"):
             if new_pass == confirm_pass and new_user:
                 st.session_state.user_db[new_user] = new_pass
-                st.success("Account created! You can now login.")
-            else:
-                st.warning("Passwords must match and fields cannot be empty.")
+                st.success("Account created! Login to continue.")
 
-# 3. GATEKEEPER LOGIC
 if not st.session_state.authenticated:
     login_page()
-    st.stop() # Stops the rest of the app from loading until logged in
+    st.stop()
 
-# --- 4. UI Styling & Configuration (The rest of your app) ---
+# --- 4. UI Styling & Configuration ---
 st.set_page_config(page_title="NotesAI Pro | Enterprise Education", layout="wide", page_icon="🎓")
 
 st.markdown("""
@@ -103,49 +116,29 @@ st.markdown("""
         border: 2px solid #002366;
         font-family: 'Courier New', Courier, monospace;
     }
-    [data-testid="stMetricValue"] {
-        font-size: 1.8rem !important;
-        color: #002366 !important;
-    }
     </style>
     """, unsafe_allow_html=True)
 
-# --- SIDEBAR: ANALYTICS & MONITORING ---
+# --- SIDEBAR ---
 with st.sidebar:
     st.image("https://img.freepik.com/free-vector/online-education-concept-illustration_114360-8422.jpg", use_container_width=True)
     st.title("🚀 NotesAI Pro")
-    st.write(f"👤 Logged in as: **{st.session_state.current_user}**")
+    st.write(f"👤 User: **{st.session_state.current_user}**")
     if st.button("Logout"):
         st.session_state.authenticated = False
         st.rerun()
 
     mode = st.selectbox("🎯 SELECT CAPABILITY", ["Tutor Chat", "Note Scanner", "Exam Prep (Quiz)"])
-    
     st.divider()
     
-    # PRODUCTIVITY TRACKER
     st.subheader("📊 Session Intelligence")
     target_mins = st.number_input("Daily Mission (Mins)", min_value=1, max_value=720, value=60)
     completed_mins = st.slider("Session Progress", 0, target_mins, int(target_mins*0.4))
+    st.progress(completed_mins / target_mins)
     
-    prog = (completed_mins / target_mins)
-    st.progress(prog)
-    
-    cols = st.columns(2)
-    cols[0].metric("Focus Score", f"{int(prog*100)}%")
-    cols[1].metric("Tokens", "Active", "✨")
-
-    # NEW FEATURE: Session Log
-    with st.expander("📝 Session Activity Log"):
-        st.caption(f"Init: {datetime.now().strftime('%H:%M:%S')}")
-        st.caption(f"Status: Neural Core Synchronized")
-        st.caption(f"Active Mode: {mode}")
-
-    # LIVE TICKING TIMER
     st.divider()
-    st.subheader("⏱️ Focus Chronometer")
+    st.subheader("⏱️ Focus Timer")
     t_mins = st.number_input("Study Interval", 1, 120, 25)
-    
     if st.button("🔥 START DEEP WORK"):
         t_secs = t_mins * 60
         t_display = st.empty()
@@ -155,7 +148,6 @@ with st.sidebar:
             time.sleep(1)
             t_secs -= 1
         st.balloons()
-        st.success("Interval Complete. Brain cooldown recommended.")
 
 # --- MAIN INTERFACE ---
 head_cols = st.columns([1, 5])
@@ -168,93 +160,56 @@ with head_cols[1]:
 st.markdown("""
 <div class="feature-card">
     <h3>🌐 Multimodal Academic Intelligence</h3>
-    Welcome to a high-performance cognitive environment. NotesAI integrates 
-    vision-processing, linguistic synthesis, and adaptive testing into a single 
-    unified framework. <strong>Universal Syllabus Support Enabled.</strong>
+    NotesAI integrates vision-processing, linguistic synthesis, and adaptive testing. 
+    <strong>Universal Syllabus Support Enabled.</strong>
 </div>
 """, unsafe_allow_html=True)
 
-# (Remainder of your logic for Tutor Chat, Note Scanner, and Exam Prep follows here...)
-# 
+tips = [
+    "🧠 **Memory Encoding:** Link new info to what you already know.",
+    "🍅 **Neuro-Rest:** Take 5 min breaks every 25 mins.",
+    "🔗 **Interleaving:** Mix subjects to improve problem-solving."
+]
+st.info(random.choice(tips))
+st.divider()
 
+# --- MODE LOGIC ---
 if mode == "Tutor Chat":
     st.markdown("## 💬 AI Subject Specialist")
-    subj = st.radio("Specialization Core:", ["General", "Science", "History", "Math", "English", "Physics", "Chemistry", "Economics"], horizontal=True)
-    
-    details = {
-        "General": "Cross-domain logic and general knowledge synthesis.",
-        "Science": "Cellular biology, ecology, and scientific inquiry.",
-        "History": "World history timelines, socio-political movements, and revolutions.",
-        "Math": "Functions, geometry, and arithmetic logic.",
-        "English": "Textual analysis, creative prose, and advanced syntax.",
-        "Physics": "Kinematics, Thermodynamics, and Quantum theory.",
-        "Chemistry": "Molecular bonding, kinetics, and elemental properties.",
-        "Economics": "Supply-demand curves and global financial theory."
-    }
-    
-    with st.expander("📚 View Curriculum Focus"):
-        st.write(f"The **{subj}** core is currently optimized for IGCSE, IBDP, and AP standards.")
-
-    st.caption(f"🧠 **System Configuration:** {details[subj]} | **Support:** All Grades/Levels")
-    st.toggle("Enable Deep Reasoning Mode", value=True)
-    
+    subj = st.radio("Focus:", ["General", "Science", "History", "Math", "English", "Physics", "Chemistry"], horizontal=True)
     c_input = st.chat_input(f"Consult the {subj} Specialist...")
     if c_input:
-        with st.spinner(f"NotesAI {subj} Core is synthesizing response..."):
-            try:
-                p = f"You are NotesAI, a world-class {subj} expert. Provide a detailed, pedagogical, and clear explanation for: {c_input}"
-                resp = model.generate_content(p)
-                with st.chat_message("assistant", avatar="🎓"):
-                    st.markdown(f"### {subj} Specialist Analysis")
-                    st.write(resp.text)
-                    st.divider()
-                    st.caption("Generated by NotesAI Neural Core v4.2")
-            except Exception as e:
-                st.error(f"Engine Timeout: {e}")
+        with st.spinner("Synthesizing..."):
+            res = safe_ai_call(f"You are a {subj} tutor for an 8th grader. Explain: {c_input}")
+            if res:
+                st.chat_message("assistant", avatar="🎓").write(res)
 
 elif mode == "Note Scanner":
     st.markdown("## 📸 Vision Analysis Core")
-    st.write("Extracting structured intelligence from handwritten or digital imagery.")
-    # 
-
-    up_file = st.file_uploader("📂 Input Handwritten Document", type=["jpg", "png", "jpeg"])
-    
+    up_file = st.file_uploader("📂 Input Notes", type=["jpg", "png", "jpeg"])
     if up_file:
         img = Image.open(up_file)
-        c1, c2 = st.columns([1, 1.2])
-        with c1:
-            st.image(img, caption='Input Stream', use_container_width=True)
+        c1, c2 = st.columns(2)
+        with c1: st.image(img, use_container_width=True)
         with c2:
-            scan_type = st.select_slider("Analysis Depth", options=["Quick Summary", "Detailed Transcription", "Concept Mapping"])
-            if st.button("✨ INITIATE VISION SCAN"):
-                with st.spinner("Processing visual tokens..."):
-                    try:
-                        r = model.generate_content([f"Perform a {scan_type}. Provide transcription, key concepts, and a study guide.", img])
-                        st.success("Vision Analysis Complete")
-                        st.markdown("### 📝 Digital Intelligence Report")
-                        st.write(r.text)
-                        st.download_button("📥 Export as Study Sheet (.txt)", r.text, f"NotesAI_Scan_{datetime.now().strftime('%Y%m%d')}.txt")
-                    except Exception as e:
-                        st.error(f"Vision Error: {e}")
+            s_type = st.select_slider("Depth", options=["Summary", "Transcription", "Concept Map"])
+            if st.button("✨ START SCAN"):
+                with st.spinner("Analyzing..."):
+                    res = safe_ai_call([f"Perform a {s_type} on this image.", img])
+                    if res:
+                        st.write(res)
+                        st.download_button("📥 Export", res, "NotesAI_Export.txt")
 
 elif mode == "Exam Prep (Quiz)":
-    st.markdown("## 📝 Adaptive Assessment Engine")
-    d_level = st.select_slider("Intensity Level:", options=["Elementary", "Intermediate", "Advanced", "Elite / PhD"], value="Intermediate")
-    
-    topic = st.text_input("Define Assessment Topic:", placeholder="e.g., Cellular Respiration or Industrial Revolution")
-    q_type = st.multiselect("Included Question Formats:", ["Multiple Choice", "True/False", "Short Answer"], default=["Multiple Choice"])
-    
-    if st.button("🔥 GENERATE ASSESSMENT"):
-        with st.spinner(f"Architecting {d_level} level challenge..."):
-            try:
-                formats = ", ".join(q_type)
-                r = model.generate_content(f"Generate a 5-question {d_level} difficulty exam on {topic} using {formats}. Provide a detailed explanation for each answer at the bottom.")
+    st.markdown("## 📝 Assessment Engine")
+    d_lvl = st.select_slider("Level:", options=["Elementary", "Intermediate", "Advanced", "Elite"], value="Intermediate")
+    topic = st.text_input("Topic:", placeholder="e.g., Cellular Respiration")
+    if st.button("🔥 GENERATE"):
+        with st.spinner("Creating..."):
+            res = safe_ai_call(f"Generate a 5-question {d_lvl} quiz on {topic}")
+            if res:
                 st.balloons()
-                st.markdown(f"### ❓ {d_level} Exam: {topic}")
-                st.write(r.text)
-                st.download_button("📥 Save Exam for Offline Study", r.text, "NotesAI_Exam.txt")
-            except Exception as e:
-                st.error(f"Generation Failed: {e}")
+                st.write(res)
 
 st.divider()
-st.caption("NotesAI Pro Framework v4.2 | Universal Academic Integration | © 2026 STEM Excellence")
+st.caption("NotesAI Pro v4.2 | © 2026 STEM Excellence")
