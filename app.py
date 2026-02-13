@@ -3,6 +3,7 @@ import google.generativeai as genai
 from PIL import Image
 import random 
 import time   
+from datetime import datetime
 
 # 1. API Configuration
 if "GEMINI_API_KEY" in st.secrets:
@@ -19,10 +20,6 @@ except Exception:
 # 2. UI Styling & Configuration
 st.set_page_config(page_title="NotesAI Pro", layout="wide", page_icon="🎓")
 
-# Initialize Chat History
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
 st.markdown("""
     <style>
     .main { background-color: #f0f2f6; }
@@ -38,7 +35,6 @@ st.markdown("""
     }
     div.stButton > button:hover {
         background-color: #004080;
-        border: none;
         color: #ffcc00;
         transform: scale(1.02);
     }
@@ -63,38 +59,16 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- SIDEBAR GRAPHICS & TIMER ---
+# --- SIDEBAR ---
 with st.sidebar:
     st.image("https://img.freepik.com/free-vector/online-education-concept-illustration_114360-8422.jpg", use_container_width=True)
     st.header("📌 Navigation")
     mode = st.selectbox("Choose a Study Mode", ["Tutor Chat", "Note Scanner", "Exam Prep (Quiz)"])
     
-    # NEW FEATURE: Language Support
     st.divider()
-    language = st.selectbox("🌍 Learning Language", ["English", "Spanish", "French", "German", "Hindi"])
-
-    st.markdown("---")
-    st.markdown("### 📊 Learning Dashboard")
-    st.metric(label="System Status", value="Active", delta="100% Uptime")
     
-    st.markdown("---")
-    st.markdown("### 📈 Goal Customization")
-    target_mins = st.number_input("Target Study Minutes", min_value=1, max_value=480, value=60, step=15)
-    completed_mins = st.slider("Minutes Completed", 0, target_mins, int(target_mins*0.65))
-    
-    progress_percentage = int((completed_mins / target_mins) * 100)
-    st.progress(progress_percentage / 100)
-    
-    if progress_percentage < 40:
-        st.warning(f"Level: Beginner ({progress_percentage}%)")
-    elif progress_percentage < 80:
-        st.info(f"Level: Intermediate ({progress_percentage}%)")
-    else:
-        st.success(f"Level: Master Scholar ({progress_percentage}%)")
-
     # FOCUS TIMER
-    st.markdown("---")
-    st.markdown("### ⏱️ Live Focus Timer")
+    st.subheader("⏱️ Focus Chronometer")
     timer_minutes = st.number_input("Set Timer (mins)", min_value=1, max_value=120, value=25)
     
     if st.button("🚀 Start Timer"):
@@ -105,10 +79,8 @@ with st.sidebar:
             timer_display.markdown(f'<div class="timer-box">{mins:02d}:{secs:02d}</div>', unsafe_allow_html=True)
             time.sleep(1)
             t_seconds -= 1
-        timer_display.success("⏰ Time's Up! Take a break.")
         st.balloons()
-    
-    st.caption(f"Status: Ready for IGCSE/IB Support 🟢 ({language})")
+        st.success("Time's Up! Take a break.")
 
 # --- MAIN CONTENT ---
 col1, col2 = st.columns([1, 4])
@@ -120,46 +92,32 @@ with col2:
 
 st.markdown("""
 <div class="feature-card">
-    <strong>Welcome to the Pro Edition!</strong><br>
-    Bridging the gap between handwritten notes and digital mastery. Now supporting multi-language explanations and persistent chat history.
+    <strong>Universal Syllabus Support:</strong> Designed to bridge the gap between 
+    analog handwritten notes and digital mastery.
 </div>
 """, unsafe_allow_html=True)
-
-tips = [
-    "Use active recall: Test yourself instead of just re-reading.",
-    "Space out your study sessions for better long-term memory.",
-    "Try explaining a topic to an imaginary student to find your knowledge gaps.",
-    "Take 5-minute breaks every 25 minutes (Pomodoro technique)."
-]
-st.info(f"💡 **Study Tip:** {random.choice(tips)}")
 
 st.divider()
 
 # --- MODE LOGIC ---
+
 if mode == "Tutor Chat":
     st.markdown("### 💬 Interactive Tutor")
     subject = st.radio("Focus Area:", ["General", "Science", "History", "Math", "English"], horizontal=True)
     
-    # NEW FEATURE: Display History
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-
-    chat_input = st.chat_input("Ask a question...")
+    chat_input = st.chat_input(f"Ask your {subject} question...")
     if chat_input:
-        st.session_state.messages.append({"role": "user", "content": chat_input})
-        with st.chat_message("user"):
-            st.markdown(chat_input)
-
-        with st.spinner(f"NotesAI {subject} Specialist is thinking in {language}..."):
+        with st.spinner(f"NotesAI is analyzing..."):
             try:
-                prompt = f"Role: Specialist {subject} tutor for 8th grade. Language: {language}. Task: Explain {chat_input}"
+                prompt = f"You are NotesAI, a specialist {subject} tutor for an 8th grader. Explain: {chat_input}"
                 response = model.generate_content(prompt)
-                st.session_state.messages.append({"role": "assistant", "content": response.text})
                 with st.chat_message("assistant", avatar="🎓"):
                     st.write(response.text)
             except Exception as e:
-                st.error(f"AI Error: {e}")
+                if "429" in str(e):
+                    st.warning("⚠️ **System Busy:** Rate limit reached. Please wait a moment before trying again.")
+                else:
+                    st.error(f"Error: {e}")
 
 elif mode == "Note Scanner":
     st.markdown("### 📸 Vision Scanner")
@@ -172,34 +130,33 @@ elif mode == "Note Scanner":
             st.image(img, caption='Uploaded Notes', use_container_width=True)
         
         with text_col:
-            analysis_type = st.radio("Scanner Mode", ["Standard Summary", "Extract Formulas", "Key Dates & Names"])
             if st.button("✨ Analyze & Summarize"):
-                with st.spinner("Decoding notes..."):
+                with st.spinner("Extracting key concepts..."):
                     try:
-                        # NEW FEATURE: Targeted Extraction
-                        prompt = f"In {language}, provide a structured {analysis_type} of these notes. Extract specific {analysis_type} if visible."
-                        response = model.generate_content([prompt, img])
+                        response = model.generate_content(["Provide a structured summary of these notes.", img])
                         st.success("Extraction Complete!")
                         st.write(response.text)
-                        st.download_button(label="📥 Download Study Summary", data=response.text, file_name="study_notes.txt")
                     except Exception as e:
-                        st.error(f"AI Error: {e}")
+                        if "429" in str(e):
+                            st.warning("⚠️ **API Limit:** System is busy. Please retry in 60 seconds.")
+                        else:
+                            st.error(f"Error: {e}")
 
 elif mode == "Exam Prep (Quiz)":
     st.markdown("### 📝 Quiz Generator")
-    diff = st.select_slider("Select Difficulty:", options=["Easy", "Medium", "Hard"], value="Medium")
-    topic = st.text_input("Topic for test:")
+    topic = st.text_input("Topic for practice quiz:")
     
     if st.button("🔥 Generate Practice Quiz"):
-        with st.spinner(f"Architecting {diff} test..."):
+        with st.spinner("Architecting test..."):
             try:
-                # NEW FEATURE: Structured Quiz Formatting
-                prompt = f"Create a 5-question {diff} quiz in {language} about {topic} for 8th grade. Use MCQ format. Hide the answers at the very bottom."
-                response = model.generate_content(prompt)
-                st.session_state.last_quiz = response.text
+                response = model.generate_content(f"Generate a 5-question MCQ quiz on {topic} for an 8th grader. Include answers.")
                 st.balloons() 
-                st.markdown(f"### ❓ {diff} Quiz: {topic}")
-                st.write(st.session_state.last_quiz)
-                st.download_button(label="📥 Download Quiz", data=st.session_state.last_quiz, file_name="quiz.txt")
+                st.write(response.text)
             except Exception as e:
-                st.error(f"AI Error: {e}")
+                if "429" in str(e):
+                    st.warning("⚠️ **Quota Reached:** Please wait a minute before generating another quiz.")
+                else:
+                    st.error(f"Error: {e}")
+
+st.divider()
+st.caption("NotesAI Pro | Concept by Parth | Developed by Yuvraj | © 2026 STEM Excellence")
