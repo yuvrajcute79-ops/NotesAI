@@ -3,7 +3,6 @@ import google.generativeai as genai
 from PIL import Image
 import random 
 import time   
-from datetime import datetime
 
 # 1. API Configuration
 if "GEMINI_API_KEY" in st.secrets:
@@ -13,12 +12,13 @@ else:
 
 # --- MODEL SELECTION ---
 try:
-    model = genai.GenerativeModel('gemini-2.0-flash')
+    model = genai.GenerativeModel('gemini-2.5-flash')
+    model.generate_content("test", generation_config={"max_output_tokens": 1})
 except Exception:
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-3-flash-preview')
 
 # 2. UI Styling & Configuration
-st.set_page_config(page_title="NotesAI Pro", layout="wide", page_icon="🎓")
+st.set_page_config(page_title="NotesAI", layout="wide", page_icon="🎓")
 
 st.markdown("""
     <style>
@@ -26,147 +26,179 @@ st.markdown("""
     div.stButton > button:first-child {
         background-color: #002366;
         color: white;
-        border-radius: 12px;
-        height: 3.5em;
+        border-radius: 10px;
+        height: 3em;
         width: 100%;
         font-weight: bold;
         border: none;
-        transition: all 0.3s ease;
+        transition: 0.3s;
     }
     div.stButton > button:hover {
         background-color: #004080;
-        transform: translateY(-2px);
+        border: none;
         color: #ffcc00;
+        transform: scale(1.02);
     }
     .feature-card {
         background-color: white;
-        padding: 30px;
-        border-radius: 20px;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.05);
-        margin-bottom: 25px;
-        border-left: 8px solid #002366;
+        padding: 25px;
+        border-radius: 15px;
+        box-shadow: 2px 2px 15px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        border-left: 5px solid #002366;
+    }
+    .stProgress > div > div > div > div {
+        background-color: #002366;
     }
     .timer-box {
-        font-size: 60px;
-        font-weight: 800;
+        font-size: 40px;
+        font-weight: bold;
         color: #002366;
         text-align: center;
-        background: #eef2f3;
-        border-radius: 25px;
-        padding: 30px;
-        margin: 20px 0;
-        border: 2px solid #002366;
-        font-family: 'Courier New', Courier, monospace;
+        background: #e0eafc;
+        border-radius: 15px;
+        padding: 10px;
+        margin: 10px 0;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- SIDEBAR ---
+# --- SIDEBAR GRAPHICS & TIMER ---
 with st.sidebar:
     st.image("https://img.freepik.com/free-vector/online-education-concept-illustration_114360-8422.jpg", use_container_width=True)
-    st.title("🚀 NotesAI Pro")
+    st.header("📌 Navigation")
+    mode = st.selectbox("Choose a Study Mode", ["Tutor Chat", "Note Scanner", "Exam Prep (Quiz)"])
     
-    mode = st.selectbox("🎯 SELECT CAPABILITY", ["Tutor Chat", "Note Scanner", "Exam Prep (Quiz)"])
     st.divider()
+    st.markdown("### 📊 Learning Dashboard")
+    st.metric(label="System Status", value="Active", delta="100% Uptime")
     
-    # FOCUS TIMER
-    st.subheader("⏱️ Focus Chronometer")
-    t_mins = st.number_input("Study Interval (Mins)", 1, 120, 25)
+    st.markdown("---")
+    st.markdown("### 📈 Goal Customization")
+    target_mins = st.number_input("Target Study Minutes", min_value=1, max_value=480, value=60, step=15)
+    completed_mins = st.slider("Minutes Completed", 0, target_mins, int(target_mins*0.65))
     
-    if st.button("🔥 START FOCUS SESSION"):
-        t_secs = t_mins * 60
-        t_display = st.empty()
-        while t_secs > 0:
-            mm, ss = divmod(t_secs, 60)
-            t_display.markdown(f'<div class="timer-box">{mm:02d}:{ss:02d}</div>', unsafe_allow_html=True)
-            time.sleep(1)
-            t_secs -= 1
-        st.balloons()
-        st.success("Interval Complete!")
+    progress_percentage = int((completed_mins / target_mins) * 100)
+    st.progress(progress_percentage / 100)
+    
+    if progress_percentage < 40:
+        st.warning(f"Level: Beginner ({progress_percentage}%)")
+    elif progress_percentage < 80:
+        st.info(f"Level: Intermediate ({progress_percentage}%)")
+    else:
+        st.success(f"Level: Master Scholar ({progress_percentage}%)")
 
-# --- MAIN INTERFACE ---
-head_cols = st.columns([1, 5])
-with head_cols[0]:
-    st.image("https://cdn-icons-png.flaticon.com/512/5190/5190714.png", width=110)
-with head_cols[1]:
-    st.title("NotesAI: The Universal Learning Engine")
-    st.write(f"📅 {datetime.now().strftime('%A, %B %d, %Y')} | 🌍 Status: Active")
+    # FOCUS TIMER (ACTUAL TICKING TIMER)
+    st.markdown("---")
+    st.markdown("### ⏱️ Live Focus Timer")
+    timer_minutes = st.number_input("Set Timer (mins)", min_value=1, max_value=120, value=25)
+    
+    if st.button("🚀 Start Timer"):
+        t_seconds = timer_minutes * 60
+        timer_display = st.empty()
+        while t_seconds > 0:
+            mins, secs = divmod(t_seconds, 60)
+            timer_display.markdown(f'<div class="timer-box">{mins:02d}:{secs:02d}</div>', unsafe_allow_html=True)
+            time.sleep(1)
+            t_seconds -= 1
+        timer_display.success("⏰ Time's Up! Take a break.")
+        st.balloons()
+    
+    st.caption("Status: Ready for IGCSE/IB Support 🟢")
+
+# --- MAIN CONTENT GRAPHICS ---
+col1, col2 = st.columns([1, 4])
+with col1:
+    st.image("https://cdn-icons-png.flaticon.com/512/5190/5190714.png", width=100)
+with col2:
+    st.title("NotesAI")
+    st.subheader("Your Intelligent Academic Study Partner")
 
 st.markdown("""
 <div class="feature-card">
-    <h3>🌐 Specialized Academic Intelligence</h3>
-    NotesAI is a dedicated learning platform. By specializing in academic subjects, 
-    it delivers more precise and safer results than general-purpose AI models.
+    <strong>Welcome to the future of studying!</strong><br>
+    It is designed specifically for <strong>Students</strong> to bridge the gap between handwritten notes and digital mastery. 
+    Our AI engine can decipher complex handwriting, simplify concepts and verify your knowledge through our quiz feature.
 </div>
 """, unsafe_allow_html=True)
 
-# --- CAPABILITY LOGIC ---
-
-if mode == "Tutor Chat":
-    st.markdown("## 💬 AI Subject Specialist")
-    subj = st.radio("Subject Focus:", ["Science", "History", "Math", "English", "Physics", "Chemistry"], horizontal=True)
-    
-    # NEW FEATURE: Complexity Level
-    complexity = st.select_slider("Explanation Detail:", options=["Simplified", "Standard", "Advanced"])
-    
-    c_input = st.chat_input(f"Consult the {subj} Specialist...")
-    if c_input:
-        with st.spinner(f"NotesAI is analyzing at {complexity} level..."):
-            try:
-                p = f"You are NotesAI, a world-class {subj} expert. Provide a {complexity} level explanation for: {c_input}"
-                resp = model.generate_content(p)
-                with st.chat_message("assistant", avatar="🎓"):
-                    st.write(resp.text)
-                    st.download_button("📥 Download Explanation", resp.text, "Explanation.txt")
-            except Exception as e:
-                if "429" in str(e):
-                    st.warning("⚠️ **System Busy:** The AI is taking a quick breath. Please wait 30-60 seconds and try again.")
-                else:
-                    st.error(f"Error: {e}")
-
-elif mode == "Note Scanner":
-    st.markdown("## 📸 Vision Analysis Core")
-    up_file = st.file_uploader("📂 Upload Handwritten Document", type=["jpg", "png", "jpeg"])
-    
-    if up_file:
-        img = Image.open(up_file)
-        st.image(img, caption='Input Stream', width=400)
-        
-        # NEW FEATURE: Analysis Focus
-        scan_focus = st.selectbox("Scanner Focus:", ["General Summary", "Extract Formulas", "Key Definitions Only"])
-        
-        if st.button("✨ DEPLOY VISION SCAN"):
-            with st.spinner(f"Decoding handwriting for {scan_focus}..."):
-                try:
-                    r = model.generate_content([f"Act as an academic OCR. Perform a {scan_focus} on these notes.", img])
-                    st.markdown("### 📝 Digital Intelligence Report")
-                    st.write(r.text)
-                    st.download_button("📥 Save to Device", r.text, "Scanned_Notes.txt")
-                except Exception as e:
-                    if "429" in str(e):
-                        st.warning("⚠️ **Scanner Paused:** Rate limit reached. Try again in 60 seconds.")
-                    else:
-                        st.error(f"Vision Error: {e}")
-
-elif mode == "Exam Prep (Quiz)":
-    st.markdown("## 📝 Adaptive Assessment Engine")
-    topic = st.text_input("Define Assessment Topic:", placeholder="e.g., Cellular Respiration")
-    
-    # NEW FEATURE: Question Count
-    q_count = st.slider("Number of Questions:", 3, 10, 5)
-    
-    if st.button("🔥 GENERATE ASSESSMENT"):
-        with st.spinner(f"Architecting {q_count} questions..."):
-            try:
-                r = model.generate_content(f"Generate a {q_count}-question quiz on {topic}. Include an answer key.")
-                st.balloons()
-                st.write(r.text)
-                st.download_button("📥 Export Quiz", r.text, "Study_Quiz.txt")
-            except Exception as e:
-                if "429" in str(e):
-                    st.warning("⚠️ **Assessment Hub Overloaded:** Please wait a minute before generating a new quiz.")
-                else:
-                    st.error(f"Generation Failed: {e}")
+# STUDY TIP
+tips = [
+    "Use active recall: Test yourself instead of just re-reading.",
+    "Space out your study sessions for better long-term memory.",
+    "Try explaining a topic to an imaginary student to find your knowledge gaps.",
+    "Take 5-minute breaks every 25 minutes (Pomodoro technique)."
+]
+st.info(f"💡 **Study Tip of the Day:** {random.choice(tips)}")
 
 st.divider()
-st.caption("NotesAI Pro Framework | Concept by Parth | Developed by Yuvraj | © 2026 AI Excellence")
+
+# --- MODE LOGIC ---
+if mode == "Tutor Chat":
+    st.markdown("### 💬 Interactive Tutor")
+    # UPDATED FEATURE: Subject Specialization with English added
+    subject = st.radio("Focus Area:", ["General", "Science", "History", "Math", "English"], horizontal=True)
+    
+    # Subject Specific Details
+    details = {
+        "General": "Broad knowledge support across various curricula.",
+        "Science": "Physics, Chemistry, and Biology collision theory & formulas.",
+        "History": "Timeline of events, key figures, and deep analysis.",
+        "Math": "Step-by-step problem solving and geometric proofs.",
+        "English": "Grammar, Literature analysis, and creative writing feedback."
+    }
+    st.caption(f"🎯 **Subject Focus:** {details[subject]}")
+    
+    st.write(f"**How to use:** Ask any {subject} question below for an age-appropriate explanation.")
+    
+    chat_input = st.chat_input("Type your question here...")
+    if chat_input:
+        with st.spinner(f"NotesAI {subject} Specialist is thinking..."):
+            try:
+                prompt = f"You are NotesAI, a specialist {subject} tutor for an 8th grader. Explain this clearly: {chat_input}"
+                response = model.generate_content(prompt)
+                st.chat_message("assistant", avatar="🎓").write(response.text)
+            except Exception as e:
+                st.error(f"AI Error: {e}")
+
+elif mode == "Note Scanner":
+    st.markdown("### 📸 Vision Scanner")
+    st.write("Upload a photo of your notebook to create a summarized 'Cheat Sheet'.")
+    
+    uploaded_file = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
+    
+    if uploaded_file:
+        img = Image.open(uploaded_file)
+        img_col, text_col = st.columns(2)
+        with img_col:
+            st.image(img, caption='Uploaded Notes', use_container_width=True)
+        
+        with text_col:
+            if st.button("✨ Analyze & Summarize"):
+                with st.spinner("Extracting key concepts..."):
+                    try:
+                        response = model.generate_content(["Provide a structured summary of these notes with key terms and definitions.", img])
+                        st.success("Data Extraction Complete!")
+                        st.markdown("#### 📝 Notes Summary")
+                        st.write(response.text)
+                        st.download_button(label="📥 Download Study Summary", data=response.text, file_name="study_notes.txt", mime="text/plain")
+                    except Exception as e:
+                        st.error(f"AI Error: {e}")
+
+elif mode == "Exam Prep (Quiz)":
+    st.markdown("### 📝 Quiz Generator")
+    diff = st.select_slider("Select Difficulty:", options=["Easy", "Medium", "Hard"], value="Medium")
+    
+    topic = st.text_input("What topic would you like to be tested on?", placeholder="Enter topic here...")
+    
+    if st.button("🔥 Generate Practice Quiz"):
+        with st.spinner(f"Generating {diff} difficulty test..."):
+            try:
+                response = model.generate_content(f"Generate a 5-question {diff} level multiple choice quiz on {topic} for an 8th-grade student. Include answers at the end.")
+                st.balloons() 
+                st.markdown("---")
+                st.markdown(f"### ❓ {diff} Practice Quiz: {topic}")
+                st.write(response.text)
+                st.download_button(label="📥 Download Quiz for Later", data=response.text, file_name="quiz.txt", mime="text/plain")
+            except Exception as e:
+                st.error(f"AI Error: {e}")
