@@ -17,199 +17,138 @@ try:
 except Exception:
     model = genai.GenerativeModel('gemini-1.5-flash')
 
-# --- 2. RESTING LOGIC (Handles Quota/429 Errors) ---
-def safe_ai_call(prompt_data):
+# --- 2. DEEP THINKING & CACHING LOGIC (The "No-Repeat" Fix) ---
+@st.cache_data(ttl=600, show_spinner=False)
+def get_ai_response(prompt_data, is_image=False):
+    """Saves AI answers for 10 mins to avoid hitting quota twice."""
     try:
         response = model.generate_content(prompt_data)
         return response.text
     except Exception as e:
         if "429" in str(e):
-            st.info("😴 **NotesAI is taking a quick power nap...**")
-            st.caption("The AI engine is refreshing its memory. Please wait 60 seconds.")
-            progress_bar = st.progress(0)
-            for percent_complete in range(100):
-                time.sleep(0.6) # 60 seconds total
-                progress_bar.progress(percent_complete + 1)
-            st.success("✨ AI is awake! Please click the button again.")
-            return None
-        else:
-            st.error(f"AI Error: {e}")
-            return None
+            return "THINKING_REQUIRED"
+        return f"Error: {e}"
 
-# --- 3. ACCOUNT SYSTEM ---
+def handle_deep_thinking():
+    """Triggered when Quota is hit: Shows facts + progress bar."""
+    study_facts = [
+        "🧠 Your brain uses 20% of your body's total energy!",
+        "⚡ Neurons in your brain travel at 270 km/h.",
+        "📖 Reading for 6 mins reduces stress by 68%.",
+        "🍌 Bananas are berries, but strawberries aren't!",
+        "🦈 Sharks have existed for longer than trees.",
+        "🪐 A day on Venus is longer than a year on Venus."
+    ]
+    st.info("🧠 **NotesAI is Thinking Deeply...**")
+    st.markdown(f"***Did you know?*** *{random.choice(study_facts)}*")
+    
+    progress_bar = st.progress(0)
+    for percent_complete in range(100):
+        time.sleep(0.6) # 60s cooldown
+        progress_bar.progress(percent_complete + 1)
+    st.success("✨ Deep thought complete! Please try your request again.")
+
+# --- 3. ACCOUNT SYSTEM GATEWAY ---
 if 'authenticated' not in st.session_state:
     st.session_state.authenticated = False
 if 'user_db' not in st.session_state:
-    st.session_state.user_db = {"admin": "password123"} 
+    st.session_state.user_db = {"admin": "password123"}
 
 def login_page():
-    st.markdown("""
-        <div style="text-align: center; padding: 20px;">
-            <h1 style="color: #002366;">🎓 NotesAI Pro</h1>
-            <p>Please Sign In to access the Universal Learning Engine</p>
-        </div>
-    """, unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: #002366;'>🎓 NotesAI Pro</h1>", unsafe_allow_html=True)
     tab1, tab2 = st.tabs(["🔐 Login", "📝 Sign Up"])
     with tab1:
-        u_email = st.text_input("Email/Username", key="login_user")
-        u_pass = st.text_input("Password", type="password", key="login_pass")
-        if st.button("Access Account"):
-            if u_email in st.session_state.user_db and st.session_state.user_db[u_email] == u_pass:
+        u = st.text_input("Username")
+        p = st.text_input("Password", type="password")
+        if st.button("Enter Dashboard"):
+            if u in st.session_state.user_db and st.session_state.user_db[u] == p:
                 st.session_state.authenticated = True
-                st.session_state.current_user = u_email
+                st.session_state.current_user = u
                 st.rerun()
-            else:
-                st.error("Invalid credentials.")
+            else: st.error("Wrong details.")
     with tab2:
-        new_user = st.text_input("Choose Username", key="reg_user")
-        new_pass = st.text_input("Create Password", type="password", key="reg_pass")
-        confirm_pass = st.text_input("Confirm Password", type="password")
-        if st.button("Create Student Profile"):
-            if new_pass == confirm_pass and new_user:
-                st.session_state.user_db[new_user] = new_pass
-                st.success("Account created! Login to continue.")
+        new_u = st.text_input("New Username")
+        new_p = st.text_input("New Password", type="password")
+        if st.button("Create Profile"):
+            st.session_state.user_db[new_u] = new_p
+            st.success("Profile Created!")
 
 if not st.session_state.authenticated:
     login_page()
     st.stop()
 
-# --- 4. UI Styling & Configuration ---
-st.set_page_config(page_title="NotesAI Pro | Enterprise Education", layout="wide", page_icon="🎓")
+# --- 4. MAIN APP INTERFACE ---
+st.set_page_config(page_title="NotesAI Pro", layout="wide", page_icon="🎓")
 
 st.markdown("""
     <style>
     .main { background-color: #f0f2f6; }
     div.stButton > button:first-child {
-        background-color: #002366;
-        color: white;
-        border-radius: 12px;
-        height: 3.5em;
-        width: 100%;
-        font-weight: bold;
-        border: none;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-    div.stButton > button:hover {
-        background-color: #004080;
-        transform: translateY(-2px);
-        box-shadow: 0 6px 12px rgba(0,0,0,0.2);
-        color: #ffcc00;
+        background-color: #002366; color: white; border-radius: 12px; font-weight: bold;
     }
     .feature-card {
-        background-color: white;
-        padding: 30px;
-        border-radius: 20px;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.05);
-        margin-bottom: 25px;
-        border-left: 8px solid #002366;
+        background: white; padding: 25px; border-radius: 15px; border-left: 5px solid #002366;
     }
     .timer-box {
-        font-size: 60px;
-        font-weight: 800;
-        color: #002366;
-        text-align: center;
-        background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%);
-        border-radius: 25px;
-        padding: 30px;
-        margin: 20px 0;
-        border: 2px solid #002366;
-        font-family: 'Courier New', Courier, monospace;
+        font-size: 50px; font-weight: bold; color: #002366; text-align: center;
+        background: #eef2f3; border-radius: 20px; padding: 20px;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- SIDEBAR ---
 with st.sidebar:
-    st.image("https://img.freepik.com/free-vector/online-education-concept-illustration_114360-8422.jpg", use_container_width=True)
+    st.image("https://img.freepik.com/free-vector/online-education-concept-illustration_114360-8422.jpg")
     st.title("🚀 NotesAI Pro")
-    st.write(f"👤 User: **{st.session_state.current_user}**")
+    st.write(f"👤 Scholar: **{st.session_state.current_user}**")
     if st.button("Logout"):
         st.session_state.authenticated = False
         st.rerun()
-
-    mode = st.selectbox("🎯 SELECT CAPABILITY", ["Tutor Chat", "Note Scanner", "Exam Prep (Quiz)"])
-    st.divider()
     
-    st.subheader("📊 Session Intelligence")
-    target_mins = st.number_input("Daily Mission (Mins)", min_value=1, max_value=720, value=60)
-    completed_mins = st.slider("Session Progress", 0, target_mins, int(target_mins*0.4))
-    st.progress(completed_mins / target_mins)
-    
+    mode = st.selectbox("🎯 CAPABILITY", ["Tutor Chat", "Note Scanner", "Exam Prep"])
     st.divider()
-    st.subheader("⏱️ Focus Timer")
-    t_mins = st.number_input("Study Interval", 1, 120, 25)
-    if st.button("🔥 START DEEP WORK"):
-        t_secs = t_mins * 60
-        t_display = st.empty()
-        while t_secs > 0:
-            mm, ss = divmod(t_secs, 60)
-            t_display.markdown(f'<div class="timer-box">{mm:02d}:{ss:02d}</div>', unsafe_allow_html=True)
-            time.sleep(1)
-            t_secs -= 1
+    t_mins = st.number_input("Study Time (Mins)", 1, 120, 25)
+    if st.button("⏱️ START TIMER"):
+        ts = t_mins * 60
+        td = st.empty()
+        while ts > 0:
+            mm, ss = divmod(ts, 60)
+            td.markdown(f'<div class="timer-box">{mm:02d}:{ss:02d}</div>', unsafe_allow_html=True)
+            time.sleep(1); ts -= 1
         st.balloons()
 
-# --- MAIN INTERFACE ---
-head_cols = st.columns([1, 5])
-with head_cols[0]:
-    st.image("https://cdn-icons-png.flaticon.com/512/5190/5190714.png", width=110)
-with head_cols[1]:
-    st.title("NotesAI: The Universal Learning Engine")
-    st.write(f"🌐 Infrastructure Status: **Optimal** | 📅 {datetime.now().strftime('%A, %B %d, %Y')}")
+# --- 5. LOGIC MODULES ---
+st.title("NotesAI: The Specialized Learning Engine")
 
-st.markdown("""
-<div class="feature-card">
-    <h3>🌐 Multimodal Academic Intelligence</h3>
-    NotesAI integrates vision-processing, linguistic synthesis, and adaptive testing. 
-    <strong>Universal Syllabus Support Enabled.</strong>
-</div>
-""", unsafe_allow_html=True)
-
-tips = [
-    "🧠 **Memory Encoding:** Link new info to what you already know.",
-    "🍅 **Neuro-Rest:** Take 5 min breaks every 25 mins.",
-    "🔗 **Interleaving:** Mix subjects to improve problem-solving."
-]
-st.info(random.choice(tips))
-st.divider()
-
-# --- MODE LOGIC ---
 if mode == "Tutor Chat":
-    st.markdown("## 💬 AI Subject Specialist")
-    subj = st.radio("Focus:", ["General", "Science", "History", "Math", "English", "Physics", "Chemistry"], horizontal=True)
-    c_input = st.chat_input(f"Consult the {subj} Specialist...")
-    if c_input:
-        with st.spinner("Synthesizing..."):
-            res = safe_ai_call(f"You are a {subj} tutor for an 8th grader. Explain: {c_input}")
-            if res:
-                st.chat_message("assistant", avatar="🎓").write(res)
+    subj = st.radio("Subject:", ["Science", "History", "Math", "English", "Economics"], horizontal=True)
+    prompt = st.chat_input("Ask your question...")
+    if prompt:
+        with st.spinner("AI is thinking..."):
+            ans = get_ai_response(f"As a {subj} tutor, explain: {prompt}")
+            if ans == "THINKING_REQUIRED": handle_deep_thinking()
+            else: st.chat_message("assistant", avatar="🎓").write(ans)
 
 elif mode == "Note Scanner":
-    st.markdown("## 📸 Vision Analysis Core")
-    up_file = st.file_uploader("📂 Input Notes", type=["jpg", "png", "jpeg"])
-    if up_file:
-        img = Image.open(up_file)
-        c1, c2 = st.columns(2)
-        with c1: st.image(img, use_container_width=True)
-        with c2:
-            s_type = st.select_slider("Depth", options=["Summary", "Transcription", "Concept Map"])
-            if st.button("✨ START SCAN"):
-                with st.spinner("Analyzing..."):
-                    res = safe_ai_call([f"Perform a {s_type} on this image.", img])
-                    if res:
-                        st.write(res)
-                        st.download_button("📥 Export", res, "NotesAI_Export.txt")
+    f = st.file_uploader("Upload Notes", type=["jpg","png","jpeg"])
+    if f:
+        img = Image.open(f)
+        st.image(img, width=400)
+        if st.button("✨ SCAN NOTES"):
+            with st.spinner("Processing..."):
+                # Note: Images aren't cached the same way as text strings
+                try:
+                    res = model.generate_content(["Summarize these handwritten notes.", img])
+                    st.write(res.text)
+                except Exception as e:
+                    if "429" in str(e): handle_deep_thinking()
 
-elif mode == "Exam Prep (Quiz)":
-    st.markdown("## 📝 Assessment Engine")
-    d_lvl = st.select_slider("Level:", options=["Elementary", "Intermediate", "Advanced", "Elite"], value="Intermediate")
-    topic = st.text_input("Topic:", placeholder="e.g., Cellular Respiration")
-    if st.button("🔥 GENERATE"):
+elif mode == "Exam Prep":
+    topic = st.text_input("Quiz Topic:")
+    if st.button("🔥 GENERATE QUIZ"):
         with st.spinner("Creating..."):
-            res = safe_ai_call(f"Generate a 5-question {d_lvl} quiz on {topic}")
-            if res:
-                st.balloons()
-                st.write(res)
+            ans = get_ai_response(f"Create a 5-question quiz on {topic}")
+            if ans == "THINKING_REQUIRED": handle_deep_thinking()
+            else: st.write(ans)
 
 st.divider()
-st.caption("NotesAI Pro v4.2 | © 2026 STEM Excellence")
+st.caption("NotesAI Pro v5.2 | Final Market Prototype | © 2026 STEM Excellence")
