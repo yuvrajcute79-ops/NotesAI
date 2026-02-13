@@ -4,6 +4,7 @@ from PIL import Image
 import random 
 import time   
 from datetime import datetime
+import pandas as pd # For the new Study Analytics feature
 
 # 1. API Configuration
 if "GEMINI_API_KEY" in st.secrets:
@@ -11,144 +12,155 @@ if "GEMINI_API_KEY" in st.secrets:
 else:
     st.error("API Key not found in Streamlit Secrets!")
 
-# --- MODEL SELECTION ---
+# --- DATABASE SIMULATION (The Market-Ready 10%) ---
+if 'history' not in st.session_state:
+    st.session_state.history = []
+if 'total_minutes' not in st.session_state:
+    st.session_state.total_minutes = 0
+if 'credits' not in st.session_state:
+    st.session_state.credits = 10 # Market-ready credit system
+
 try:
     model = genai.GenerativeModel('gemini-2.0-flash')
 except Exception:
     model = genai.GenerativeModel('gemini-1.5-flash')
 
-# --- 2. DEEP THINKING & CACHING LOGIC (The "No-Repeat" Fix) ---
-@st.cache_data(ttl=600, show_spinner=False)
-def get_ai_response(prompt_data, is_image=False):
-    """Saves AI answers for 10 mins to avoid hitting quota twice."""
-    try:
-        response = model.generate_content(prompt_data)
-        return response.text
-    except Exception as e:
-        if "429" in str(e):
-            return "THINKING_REQUIRED"
-        return f"Error: {e}"
-
-def handle_deep_thinking():
-    """Triggered when Quota is hit: Shows facts + progress bar."""
-    study_facts = [
-        "🧠 Your brain uses 20% of your body's total energy!",
-        "⚡ Neurons in your brain travel at 270 km/h.",
-        "📖 Reading for 6 mins reduces stress by 68%.",
-        "🍌 Bananas are berries, but strawberries aren't!",
-        "🦈 Sharks have existed for longer than trees.",
-        "🪐 A day on Venus is longer than a year on Venus."
-    ]
-    st.info("🧠 **NotesAI is Thinking Deeply...**")
-    st.markdown(f"***Did you know?*** *{random.choice(study_facts)}*")
-    
-    progress_bar = st.progress(0)
-    for percent_complete in range(100):
-        time.sleep(0.6) # 60s cooldown
-        progress_bar.progress(percent_complete + 1)
-    st.success("✨ Deep thought complete! Please try your request again.")
-
-# --- 3. ACCOUNT SYSTEM GATEWAY ---
-if 'authenticated' not in st.session_state:
-    st.session_state.authenticated = False
-if 'user_db' not in st.session_state:
-    st.session_state.user_db = {"admin": "password123"}
-
-def login_page():
-    st.markdown("<h1 style='text-align: center; color: #002366;'>🎓 NotesAI Pro</h1>", unsafe_allow_html=True)
-    tab1, tab2 = st.tabs(["🔐 Login", "📝 Sign Up"])
-    with tab1:
-        u = st.text_input("Username")
-        p = st.text_input("Password", type="password")
-        if st.button("Enter Dashboard"):
-            if u in st.session_state.user_db and st.session_state.user_db[u] == p:
-                st.session_state.authenticated = True
-                st.session_state.current_user = u
-                st.rerun()
-            else: st.error("Wrong details.")
-    with tab2:
-        new_u = st.text_input("New Username")
-        new_p = st.text_input("New Password", type="password")
-        if st.button("Create Profile"):
-            st.session_state.user_db[new_u] = new_p
-            st.success("Profile Created!")
-
-if not st.session_state.authenticated:
-    login_page()
-    st.stop()
-
-# --- 4. MAIN APP INTERFACE ---
-st.set_page_config(page_title="NotesAI Pro", layout="wide", page_icon="🎓")
+# 2. UI Styling
+st.set_page_config(page_title="NotesAI Pro | Market Ready", layout="wide", page_icon="🎓")
 
 st.markdown("""
     <style>
     .main { background-color: #f0f2f6; }
     div.stButton > button:first-child {
-        background-color: #002366; color: white; border-radius: 12px; font-weight: bold;
+        background-color: #002366;
+        color: white;
+        border-radius: 12px;
+        height: 3.5em;
+        width: 100%;
+        font-weight: bold;
+        border: none;
+        transition: all 0.3s ease;
+    }
+    div.stButton > button:hover {
+        background-color: #004080;
+        transform: translateY(-2px);
+        color: #ffcc00;
     }
     .feature-card {
-        background: white; padding: 25px; border-radius: 15px; border-left: 5px solid #002366;
+        background-color: white;
+        padding: 30px;
+        border-radius: 20px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+        margin-bottom: 25px;
+        border-left: 8px solid #002366;
     }
     .timer-box {
-        font-size: 50px; font-weight: bold; color: #002366; text-align: center;
-        background: #eef2f3; border-radius: 20px; padding: 20px;
+        font-size: 60px;
+        font-weight: 800;
+        color: #002366;
+        text-align: center;
+        background: rgba(0, 35, 102, 0.05);
+        border-radius: 25px;
+        padding: 30px;
+        margin: 20px 0;
+        border: 3px dashed #002366;
     }
     </style>
     """, unsafe_allow_html=True)
 
+# --- SIDEBAR: USER ACCOUNT & ANALYTICS ---
 with st.sidebar:
-    st.image("https://img.freepik.com/free-vector/online-education-concept-illustration_114360-8422.jpg")
-    st.title("🚀 NotesAI Pro")
-    st.write(f"👤 Scholar: **{st.session_state.current_user}**")
-    if st.button("Logout"):
-        st.session_state.authenticated = False
-        st.rerun()
+    st.image("https://img.freepik.com/free-vector/online-education-concept-illustration_114360-8422.jpg", use_container_width=True)
+    st.title("👤 Student Portal")
+    st.write(f"**Account:** Premium Trial")
+    st.write(f"**AI Credits Remaining:** {st.session_state.credits}")
     
-    mode = st.selectbox("🎯 CAPABILITY", ["Tutor Chat", "Note Scanner", "Exam Prep"])
+    mode = st.selectbox("🎯 DASHBOARD", ["Tutor Chat", "Note Scanner", "Exam Prep", "Study Analytics"])
+    
     st.divider()
-    t_mins = st.number_input("Study Time (Mins)", 1, 120, 25)
-    if st.button("⏱️ START TIMER"):
-        ts = t_mins * 60
-        td = st.empty()
-        while ts > 0:
-            mm, ss = divmod(ts, 60)
-            td.markdown(f'<div class="timer-box">{mm:02d}:{ss:02d}</div>', unsafe_allow_html=True)
-            time.sleep(1); ts -= 1
-        st.balloons()
+    
+    # PRODUCTIVITY TRACKER
+    st.subheader("📈 Daily Mission")
+    target_mins = st.number_input("Target (Mins)", min_value=1, value=60)
+    st.progress(min(st.session_state.total_minutes / target_mins, 1.0))
+    st.caption(f"Status: {st.session_state.total_minutes}/{target_mins} mins completed")
 
-# --- 5. LOGIC MODULES ---
-st.title("NotesAI: The Specialized Learning Engine")
+    # TIMER
+    st.divider()
+    t_mins = st.number_input("Focus Interval", 1, 120, 25)
+    if st.button("🚀 START FOCUS"):
+        t_secs = t_mins * 60
+        t_display = st.empty()
+        while t_secs > 0:
+            mm, ss = divmod(t_secs, 60)
+            t_display.markdown(f'<div class="timer-box">{mm:02d}:{ss:02d}</div>', unsafe_allow_html=True)
+            time.sleep(1)
+            t_secs -= 1
+        st.session_state.total_minutes += t_mins
+        st.balloons()
+        st.rerun()
+
+# --- MAIN INTERFACE ---
+head_cols = st.columns([1, 5])
+with head_cols[0]:
+    st.image("https://cdn-icons-png.flaticon.com/512/5190/5190714.png", width=110)
+with head_cols[1]:
+    st.title("NotesAI Pro")
+    st.write(f"Infrastructure: **Enterprise Grade** | 📅 {datetime.now().strftime('%d %b %Y')}")
+
+# 3. MODE LOGIC
 
 if mode == "Tutor Chat":
-    subj = st.radio("Subject:", ["Science", "History", "Math", "English", "Economics"], horizontal=True)
-    prompt = st.chat_input("Ask your question...")
-    if prompt:
-        with st.spinner("AI is thinking..."):
-            ans = get_ai_response(f"As a {subj} tutor, explain: {prompt}")
-            if ans == "THINKING_REQUIRED": handle_deep_thinking()
-            else: st.chat_message("assistant", avatar="🎓").write(ans)
+    st.markdown("## 💬 Neural Subject Specialist")
+    subj = st.radio("Core:", ["General", "Science", "History", "Math", "English", "Economics"], horizontal=True)
+    c_input = st.chat_input(f"Consult the {subj} expert...")
+    
+    if c_input:
+        if st.session_state.credits > 0:
+            st.session_state.credits -= 1
+            with st.spinner("Synthesizing..."):
+                resp = model.generate_content(f"You are a specialist {subj} tutor. Explain: {c_input}")
+                st.session_state.history.append({"q": c_input, "a": resp.text, "type": "Chat"})
+                with st.chat_message("assistant", avatar="🎓"):
+                    st.write(resp.text)
+        else:
+            st.error("❌ Out of Credits! Please upgrade to NotesAI Gold.")
 
 elif mode == "Note Scanner":
-    f = st.file_uploader("Upload Notes", type=["jpg","png","jpeg"])
-    if f:
-        img = Image.open(f)
-        st.image(img, width=400)
-        if st.button("✨ SCAN NOTES"):
-            with st.spinner("Processing..."):
-                # Note: Images aren't cached the same way as text strings
-                try:
-                    res = model.generate_content(["Summarize these handwritten notes.", img])
-                    st.write(res.text)
-                except Exception as e:
-                    if "429" in str(e): handle_deep_thinking()
+    st.markdown("## 📸 Vision Analysis")
+    up_file = st.file_uploader("📂 Input Document", type=["jpg", "png", "jpeg"])
+    
+    if up_file:
+        img = Image.open(up_file)
+        c1, c2 = st.columns(2)
+        with c1: st.image(img, use_container_width=True)
+        with c2:
+            if st.button("✨ ANALYZE"):
+                if st.session_state.credits >= 2:
+                    st.session_state.credits -= 2
+                    r = model.generate_content(["Transcribe and summarize these notes.", img])
+                    st.session_state.history.append({"q": "Note Scan", "a": r.text, "type": "Scan"})
+                    st.write(r.text)
+                else:
+                    st.error("Scanner requires 2 credits.")
 
 elif mode == "Exam Prep":
-    topic = st.text_input("Quiz Topic:")
-    if st.button("🔥 GENERATE QUIZ"):
-        with st.spinner("Creating..."):
-            ans = get_ai_response(f"Create a 5-question quiz on {topic}")
-            if ans == "THINKING_REQUIRED": handle_deep_thinking()
-            else: st.write(ans)
+    st.markdown("## 📝 Assessment Engine")
+    topic = st.text_input("Assessment Topic:")
+    if st.button("🔥 GENERATE"):
+        r = model.generate_content(f"Create a 5-question quiz on {topic}")
+        st.write(r.text)
+
+elif mode == "Study Analytics":
+    st.markdown("## 📊 Personal Growth Tracking")
+    
+    if st.session_state.history:
+        df = pd.DataFrame(st.session_state.history)
+        st.write("### Recent Activity Log")
+        st.table(df[['type', 'q']])
+        st.metric("Total Focus Minutes", f"{st.session_state.total_minutes}m")
+    else:
+        st.info("No study data logged yet. Start a session to see analytics!")
 
 st.divider()
-st.caption("NotesAI Pro v5.2 | Final Market Prototype | © 2026 STEM Excellence")
+st.caption("NotesAI Pro v5.0 | Market-Ready Prototype | © 2026 STEM Excellence")
