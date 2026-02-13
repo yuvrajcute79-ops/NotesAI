@@ -100,24 +100,29 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-st.divider()
-
 # --- CAPABILITY LOGIC ---
 
 if mode == "Tutor Chat":
     st.markdown("## 💬 AI Subject Specialist")
     subj = st.radio("Subject Focus:", ["Science", "History", "Math", "English", "Physics", "Chemistry"], horizontal=True)
     
+    # NEW FEATURE: Complexity Level
+    complexity = st.select_slider("Explanation Detail:", options=["Simplified", "Standard", "Advanced"])
+    
     c_input = st.chat_input(f"Consult the {subj} Specialist...")
     if c_input:
-        with st.spinner(f"NotesAI is analyzing..."):
+        with st.spinner(f"NotesAI is analyzing at {complexity} level..."):
             try:
-                p = f"You are NotesAI, a world-class {subj} expert. Provide a detailed explanation for: {c_input}"
+                p = f"You are NotesAI, a world-class {subj} expert. Provide a {complexity} level explanation for: {c_input}"
                 resp = model.generate_content(p)
                 with st.chat_message("assistant", avatar="🎓"):
                     st.write(resp.text)
+                    st.download_button("📥 Download Explanation", resp.text, "Explanation.txt")
             except Exception as e:
-                st.error(f"Error: {e}")
+                if "429" in str(e):
+                    st.warning("⚠️ **System Busy:** The AI is taking a quick breath. Please wait 30-60 seconds and try again.")
+                else:
+                    st.error(f"Error: {e}")
 
 elif mode == "Note Scanner":
     st.markdown("## 📸 Vision Analysis Core")
@@ -127,27 +132,41 @@ elif mode == "Note Scanner":
         img = Image.open(up_file)
         st.image(img, caption='Input Stream', width=400)
         
+        # NEW FEATURE: Analysis Focus
+        scan_focus = st.selectbox("Scanner Focus:", ["General Summary", "Extract Formulas", "Key Definitions Only"])
+        
         if st.button("✨ DEPLOY VISION SCAN"):
-            with st.spinner("Decoding handwriting..."):
+            with st.spinner(f"Decoding handwriting for {scan_focus}..."):
                 try:
-                    r = model.generate_content(["Provide a detailed transcription and a summary of these notes.", img])
+                    r = model.generate_content([f"Act as an academic OCR. Perform a {scan_focus} on these notes.", img])
                     st.markdown("### 📝 Digital Intelligence Report")
                     st.write(r.text)
+                    st.download_button("📥 Save to Device", r.text, "Scanned_Notes.txt")
                 except Exception as e:
-                    st.error(f"Vision Error: {e}")
+                    if "429" in str(e):
+                        st.warning("⚠️ **Scanner Paused:** Rate limit reached. Try again in 60 seconds.")
+                    else:
+                        st.error(f"Vision Error: {e}")
 
 elif mode == "Exam Prep (Quiz)":
     st.markdown("## 📝 Adaptive Assessment Engine")
     topic = st.text_input("Define Assessment Topic:", placeholder="e.g., Cellular Respiration")
     
+    # NEW FEATURE: Question Count
+    q_count = st.slider("Number of Questions:", 3, 10, 5)
+    
     if st.button("🔥 GENERATE ASSESSMENT"):
-        with st.spinner("Architecting challenge..."):
+        with st.spinner(f"Architecting {q_count} questions..."):
             try:
-                r = model.generate_content(f"Generate a 5-question quiz on {topic}. Provide the answer key at the bottom.")
+                r = model.generate_content(f"Generate a {q_count}-question quiz on {topic}. Include an answer key.")
                 st.balloons()
                 st.write(r.text)
+                st.download_button("📥 Export Quiz", r.text, "Study_Quiz.txt")
             except Exception as e:
-                st.error(f"Generation Failed: {e}")
+                if "429" in str(e):
+                    st.warning("⚠️ **Assessment Hub Overloaded:** Please wait a minute before generating a new quiz.")
+                else:
+                    st.error(f"Generation Failed: {e}")
 
 st.divider()
-st.caption("NotesAI Pro Framework | Concept by Parth | Developed by Yuvraj | © 2026 STEM Excellence")
+st.caption("NotesAI Pro Framework | Concept by Parth | Developed by Yuvraj | © 2026 AI Excellence")
