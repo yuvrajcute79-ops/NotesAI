@@ -16,7 +16,7 @@ except Exception:
     model = genai.GenerativeModel('gemini-2.5-flash')
 
 # --- 2. PAGE INITIALIZATION & CLAUDE-STYLE CSS ---
-st.set_page_config(page_title="NotesAI", layout="wide", page_icon="✦")
+st.set_page_config(page_title="NotesAI", layout="wide", page_icon="🤖")
 
 # Initialize Session States (Memory)
 if "chat_history" not in st.session_state:
@@ -65,7 +65,7 @@ st.markdown("""
 
 # --- 3. SIDEBAR (MINIMALIST DASHBOARD) ---
 with st.sidebar:
-    st.markdown("### ✦ NotesAI Workspace")
+    st.markdown("### 🤖 NotesAI Workspace")
     st.caption("Curriculum Context: 9th-Grade IGCSE")
     st.markdown("---")
     
@@ -109,7 +109,7 @@ with st.sidebar:
                 st.session_state.timer_running = False
                 timer_ph.success("Focus complete.")
                 st.session_state.xp_points += 20
-                st.toast("✦ 20 XP Earned")
+                st.toast("🤖 20 XP Earned")
                 time.sleep(2)
                 st.rerun()
                 
@@ -129,7 +129,7 @@ with tab1:
     st.markdown("---")
     
     for message in st.session_state.chat_history:
-        with st.chat_message(message["role"], avatar="✦" if message["role"] == "assistant" else "👤"):
+        with st.chat_message(message["role"], avatar="🤖" if message["role"] == "assistant" else "👤"):
             st.write(message["content"])
             
     chat_input = st.chat_input("How can I assist with your studies today?")
@@ -138,7 +138,7 @@ with tab1:
         st.chat_message("user", avatar="👤").write(chat_input)
         st.session_state.chat_history.append({"role": "user", "content": chat_input})
         
-        with st.chat_message("assistant", avatar="✦"):
+        with st.chat_message("assistant", avatar="🤖"):
             try:
                 prompt = (f"You are NotesAI, a highly intelligent, polite, and deeply analytical AI tutor. "
                           f"You are assisting a 9th-grade student at Neerja studying for the IGCSE exams. "
